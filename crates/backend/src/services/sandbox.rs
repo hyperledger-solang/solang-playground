@@ -14,7 +14,7 @@ use tokio::process::Command;
 use crate::services::{CompilationRequest, CompilationResult};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
-const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger/solang";
+const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d";
 const DOCKER_WORKDIR: &str = "/builds/contract/";
 const DOCKER_OUTPUT: &str = "/playground-result";
 
@@ -65,15 +65,12 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
     cmd.arg("--volume").arg(&mount_output_dir);
 
     // Using the solang image
-    cmd.arg(format!(
-        "{}@sha256:8776a9bd756664f7bf8414710d1a799799bf6fedc1c8f9f0bda17e76749dea7a",
-        DOCKER_IMAGE_BASE_NAME
-    ));
+    cmd.arg(DOCKER_IMAGE_BASE_NAME);
 
     // Building the compile command
     let remove_command = format!("rm -rf {}*.wasm {}*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
     let compile_command = format!(
-        "solang compile --target polkadot -o /playground-result {} > /playground-result/stdout.log 2> /playground-result/stderr.log",
+        "solang compile --target soroban -o /playground-result {} > /playground-result/stdout.log 2> /playground-result/stderr.log",
         file_name
     );
     let sh_command = format!("{} && {}", remove_command, compile_command);
@@ -122,7 +119,7 @@ impl Sandbox {
             .context("failed to read output directory")?
             .flatten()
             .map(|entry| entry.path())
-            .find(|path| path.extension() == Some(OsStr::new("contract")));
+            .find(|path| path.extension() == Some(OsStr::new("wasm")));
 
         // The file `stdout.log` is in the same directory as the contract file
         let compile_log_stdout_file_path = fs::read_dir(&self.output_dir)
