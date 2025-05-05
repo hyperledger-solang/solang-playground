@@ -1,16 +1,18 @@
 "use client";
 
-import { cn, downloadBlob } from "@/lib/utils";
+import { useEffect, useId, useRef } from "react";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { useAddConsole } from "@/app/state";
-import { useExplorerItem, useFileContent } from "@/state/hooks";
-import { useSelector } from "@xstate/store/react";
+import { toast } from "sonner";
+import { Keypair, Networks } from "@stellar/stellar-sdk";
+import deployStellerContract from "@/lib/deploy-steller";
+import generateIdl from "@/lib/idl-wasm";
+import { cn } from "@/lib/utils";
 import { store } from "@/state";
-import IconButton from "./IconButton";
-import { useEffect, useRef } from "react";
+import { useExplorerItem, useFileContent } from "@/state/hooks";
 import { logger } from "@/state/utils";
+import { useSelector } from "@xstate/store/react";
 import Hide from "./Hide";
-import DeployToSteller from "./DeployToSteller";
+import IconButton from "./IconButton";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -74,6 +76,7 @@ function TabHome({ path }: { path: string }) {
 }
 
 function Header() {
+  const toastId = useId();
   const code = useFileContent();
   const tabs = useSelector(store, (state) => state.context.tabs);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,11 +117,19 @@ function Header() {
       };
     });
 
+    const keypair = Keypair.random();
+
     if (success) {
       if (result.type === "SUCCESS") {
         const wasm = result.payload.wasm;
-        downloadBlob(wasm);
         logger.info("Contract compiled successfully!");
+
+        toast.loading("Deploying contract...", { id: toastId });
+        const idl = await generateIdl(wasm);
+        store.send({ type: "updateContract", methods: idl });
+        const contractAddress = await deployStellerContract(wasm, keypair, Networks.TESTNET);
+        toast.success("Contract deployed successfully", { id: toastId });
+        contractAddress && store.send({ type: "updateContract", address: contractAddress });
       } else {
         const message = result.payload.compile_stderr;
         logger.error(message);
@@ -135,7 +146,7 @@ function Header() {
           <FaPlay className="text-[#32ba89]" size={12} />
         </button>
       </div>
-      <DeployToSteller />
+      {/* <DeployToSteller /> */}
       <div className="flex flex-1 w-0">
         <div ref={containerRef} className="overflow-x-auto flex scroll-smooth">
           {[...tabs].map((tab) => (
