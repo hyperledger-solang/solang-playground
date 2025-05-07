@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { toast } from "sonner";
 import { Keypair, Networks } from "@stellar/stellar-sdk";
+import { useSelector } from "@xstate/store/react";
 import deployStellerContract from "@/lib/deploy-steller";
 import generateIdl from "@/lib/idl-wasm";
 import { cn } from "@/lib/utils";
 import { store } from "@/state";
 import { useExplorerItem, useFileContent } from "@/state/hooks";
 import { logger } from "@/state/utils";
-import { useSelector } from "@xstate/store/react";
+import DeployToSteller from "./DeployToSteller";
 import Hide from "./Hide";
 import IconButton from "./IconButton";
 
@@ -76,10 +76,10 @@ function TabHome({ path }: { path: string }) {
 }
 
 function Header() {
-  const toastId = useId();
   const code = useFileContent();
   const tabs = useSelector(store, (state) => state.context.tabs);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [contract, setContract] = useState<null | Buffer>(null);
 
   async function handleCompile() {
     if (!code) {
@@ -117,19 +117,11 @@ function Header() {
       };
     });
 
-    const keypair = Keypair.random();
-
     if (success) {
       if (result.type === "SUCCESS") {
         const wasm = result.payload.wasm;
         logger.info("Contract compiled successfully!");
-
-        toast.loading("Deploying contract...", { id: toastId });
-        const idl = await generateIdl(wasm);
-        store.send({ type: "updateContract", methods: idl });
-        const contractAddress = await deployStellerContract(wasm, keypair, Networks.TESTNET);
-        toast.success("Contract deployed successfully", { id: toastId });
-        contractAddress && store.send({ type: "updateContract", address: contractAddress });
+        setContract(wasm);
       } else {
         const message = result.payload.compile_stderr;
         logger.error(message);
@@ -139,14 +131,35 @@ function Header() {
     }
   }
 
+  async function handleDeploy() {
+    if (!contract) {
+      return;
+    }
+
+    const keypair = Keypair.random();
+
+    logger.info("Deploying contract...");
+    const idl = await generateIdl(contract);
+    store.send({ type: "updateContract", methods: idl });
+    const contractAddress = await deployStellerContract(contract, keypair, Networks.TESTNET);
+    logger.info("Contract deployed successfully!");
+    contractAddress && store.send({ type: "updateContract", address: contractAddress });
+  }
+
   return (
     <div className="bg-card h-[35px] text-sm border-b flex select-none">
       <div className="border-r">
-        <button className="px-3 h-full" onClick={handleCompile}>
+        <button className="px-3 h-full flex items-center gap-2" onClick={handleCompile}>
           <FaPlay className="text-[#32ba89]" size={12} />
+          Compile
         </button>
       </div>
-      {/* <DeployToSteller /> */}
+      <div className="border-r">
+        <button className="px-3 h-full flex items-center gap-2" onClick={handleDeploy}>
+          <FaPlay className="text-[#32ba89]" size={12} />
+          Deploy
+        </button>
+      </div>
       <div className="flex flex-1 w-0">
         <div ref={containerRef} className="overflow-x-auto flex scroll-smooth">
           {[...tabs].map((tab) => (
