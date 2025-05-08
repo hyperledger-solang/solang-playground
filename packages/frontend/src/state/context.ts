@@ -37,6 +37,7 @@ export const context = {
     invoking: false,
     address: null,
     methods: [],
+    deployed: {},
   }  as Contract,
 };
 

@@ -25,6 +25,7 @@ function Sidebar() {
   return (
     <div className="">
       <FileExplorer root={explorer} />
+      
     </div>
   );
 }

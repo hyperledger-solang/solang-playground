@@ -13,6 +13,8 @@ import { logger } from "@/state/utils";
 import DeployToSteller from "./DeployToSteller";
 import Hide from "./Hide";
 import IconButton from "./IconButton";
+import useCompile from "@/hooks/useCompile";
+import useDeploy from "@/hooks/useDeploy";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -76,74 +78,22 @@ function TabHome({ path }: { path: string }) {
 }
 
 function Header() {
+  const { compileFile } = useCompile();
+  const { deployWasm } = useDeploy();
   const code = useFileContent();
   const tabs = useSelector(store, (state) => state.context.tabs);
   const containerRef = useRef<HTMLDivElement>(null);
   const [contract, setContract] = useState<null | Buffer>(null);
 
-  async function handleCompile() {
-    if (!code) {
-      return logger.error("Error: No Source Code Found");
-    }
-
-    logger.info("Compiling contract...");
-
-    const opts: RequestInit = {
-      method: "POST",
-      mode: "cors",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: code,
-      }),
-    };
-
-    const { result, success, message } = await fetch("/compile", opts).then(async (res) => {
-      console.log(res);
-      const result = await res.json().catch(() => null);
-
-      if (!result) {
-        return {
-          success: false,
-          message: res.statusText,
-          result: null,
-        };
-      }
-
-      return {
-        success: res.ok,
-        message: res.statusText,
-        result: result,
-      };
-    });
-
-    if (success) {
-      if (result.type === "SUCCESS") {
-        const wasm = result.payload.wasm;
-        logger.info("Contract compiled successfully!");
-        setContract(wasm);
-      } else {
-        const message = result.payload.compile_stderr;
-        logger.error(message);
-      }
-    } else {
-      logger.error(message);
-    }
+  const handleCompile = async () => {
+    const result = await compileFile()
+    setContract(result.data)
+    console.log('[tur] scompilation result', result)
   }
 
-  async function handleDeploy() {
-    if (!contract) {
-      return;
-    }
-
-    const keypair = Keypair.random();
-
-    logger.info("Deploying contract...");
-    const idl = await generateIdl(contract);
-    store.send({ type: "updateContract", methods: idl });
-    const contractAddress = await deployStellerContract(contract, keypair, Networks.TESTNET);
-    logger.info("Contract deployed successfully!");
-    contractAddress && store.send({ type: "updateContract", address: contractAddress });
+  const handleDeploy = async () => {
+    const result = await deployWasm(contract)
+    console.log('[tur] deployed?', result)
   }
 
   return (
