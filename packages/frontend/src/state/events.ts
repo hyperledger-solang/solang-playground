@@ -7,7 +7,8 @@ import { Monaco } from "@monaco-editor/react";
 import { createPath } from "./utils";
 import { MessageType } from "vscode-languageserver-protocol";
 import { nanoid } from "nanoid";
-import { Contract, IDL } from "@/types/idl";
+import { Contract, ContractsDeployed, IDL } from "@/types/idl";
+import { ICompiled, ICurrentWasm } from "@/types/contracts";
 
 export const events = {
   toggleFolder: (context: Context, event: { path: string }) => {
@@ -36,6 +37,7 @@ export const events = {
       }
     }
   },
+  addDeployedContract(context: Context, event: { basePath: string; name: string, contract: any }) {},
   addFile(context: Context, event: { basePath: string; name: string; content: string }) {
     const path = createPath(event.basePath, event.name);
     const file = {
@@ -65,6 +67,7 @@ export const events = {
     } satisfies FolderType;
   },
 
+
   deleteFile(context: Context, event: { path: string; basePath: string }) {
     const folder = get(context, event.basePath) as FolderType;
     const file = get(context, event.path) as FileType;
@@ -72,6 +75,7 @@ export const events = {
     events.removeTab(context, { path: event.path });
     delete folder.items[file.name];
     delete context.files[event.path];
+    context.compiled = context.compiled.filter(c => c.path !== event.path)
   },
   deleteFolder(context: Context, event: { path: string }) {
     unset(context, event.path);
@@ -130,6 +134,32 @@ export const events = {
   //   context.contract.methods = event.idl;
   // },
   updateContract(context: Context, event: Partial<Contract>) {
+    const addr = event.address;
+    if(addr && Object.keys(context.contract.deployed).indexOf(addr || '') == -1) {
+      context.contract.deployed[addr] = context.contract.methods
+    }
     Object.assign(context.contract, event);
   },
+
+  deleteDeployed(context: Context, event: {addr: string}) {
+    console.log('[tur] remove deployed:', event.addr);
+    const copy = { ...context.contract.deployed };
+    console.log('[tur] copy:', copy, copy[event.addr]);
+
+    delete copy[event.addr];
+    context.contract.deployed = copy;
+
+  },
+  
+  addCompiled(context: Context, event: Partial<ICompiled>) {
+    const d = {} as ICompiled;
+    Object.assign(d, event);
+    const x = context.compiled.filter(c => c.path == event.path);
+    if(x.length == 0) context.compiled.push(d);
+  },
+
+  updateCurrentWasm(context: Context, event: Partial<ICurrentWasm>) {
+    console.log('[tur] event updateCurrentWasm:', event)
+    Object.assign(context.currentWasm, event)
+  }
 };

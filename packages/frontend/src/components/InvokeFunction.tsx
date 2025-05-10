@@ -58,13 +58,14 @@ const defaultState = {
   result: { type: "", value: "" },
   name: "",
 };
-function InvokeFunction({ method }: { method: FunctionSpec }) {
+function InvokeFunction({ contractAddress, method }: { contractAddress: string, method: FunctionSpec }) {
   const [sg, setSignature] = useState<ReturnType<typeof createLogSingnature>>(defaultState);
   const [args, setArgs] = useState<Record<string, { type: string; value: string; subType: string }>>({});
-  const contractAddress = useSelector(store, (state) => state.context.contract?.address);
+  // const contractAddress = useSelector(store, (state) => state.context.contract?.address);
   const [logs, setLogs] = useState<string[]>(["Hello wrold", "Mango World"]);
   const toastId = useId();
   const [block, setBlock] = useState(false);
+  const [invkRetVal, setInvkRetVal] = useState<any>(null);
 
   const handleInputChange = (name: string, value: string, type: string, subType: string) => {
     setArgs((prev) => ({
@@ -131,7 +132,9 @@ function InvokeFunction({ method }: { method: FunctionSpec }) {
         logger.info(`TxId: ${result.hash}`);
         logger.info(`Contract Logs: \n${logs.join("\n")}`);
         if (response.returnValue) {
-          logger.info(`TX Result: ${scValToNative(response.returnValue)}`);
+          const retVal = scValToNative(response.returnValue);
+          setInvkRetVal(retVal);
+          logger.info(`TX Result: ${retVal}`);
           const logSignature = createLogSingnature(method, args, scValToNative(response.returnValue));
           setBlock(false);
           setSignature(logSignature);
@@ -147,7 +150,7 @@ function InvokeFunction({ method }: { method: FunctionSpec }) {
     } catch (error: any) {
       toast.error(`Error: ${error.message}`, { id: toastId });
     }
-
+    setInvkRetVal(null);
     setBlock(false);
   };
 
@@ -165,8 +168,9 @@ function InvokeFunction({ method }: { method: FunctionSpec }) {
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center">
+          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{marginTop: '2px'}}>
             <span>{method.name}</span>
+            {invkRetVal && (<span>{invkRetVal}</span>)}
             <ChevronsLeftRightEllipsis className="ml-auto" />
           </Button>
         </DialogTrigger>
