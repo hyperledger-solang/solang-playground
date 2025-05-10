@@ -14,7 +14,8 @@ use tokio::process::Command;
 use crate::services::{CompilationRequest, CompilationResult};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
-const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d";
+// const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d";
+const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang:latest";
 const DOCKER_WORKDIR: &str = "/builds/contract/";
 const DOCKER_OUTPUT: &str = "/playground-result";
 
@@ -29,11 +30,12 @@ macro_rules! docker_command {
 
 /// Builds the compile command using solang docker image
 pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
+    println!("ip file: {:?}\nop dir: {:?}", input_file, output_dir);
     // Base docker command
     let mut cmd = docker_command!(
         "run",
         "--detach",
-        "--rm",
+        // "--rm",
         "-it",
         "--cap-drop=ALL",
         "--cap-add=DAC_OVERRIDE",
@@ -99,7 +101,9 @@ impl Sandbox {
 
         fs::set_permissions(&output_dir, PermissionsExt::from_mode(0o777))
             .context("failed to set output permissions")?;
-
+        
+        File::create(&input_file).context("failed to create input file")?;
+        
         Ok(Sandbox {
             scratch,
             input_file,
@@ -112,9 +116,10 @@ impl Sandbox {
         self.write_source_code(&req.source)?;
 
         let command = build_compile_command(&self.input_file, &self.output_dir);
-        println!("Executing command: \n{:#?}", command);
+        // println!("Executing command: \n{:#?}", command);
 
         let output = run_command(command)?;
+        println!("out: {:?}", output);
         let file = fs::read_dir(&self.output_dir)
             .context("failed to read output directory")?
             .flatten()
@@ -184,9 +189,16 @@ impl Sandbox {
 
     /// A helper function to write the source code to the input file
     fn write_source_code(&self, code: &str) -> Result<()> {
+        println!("writing to {:?}", self.input_file);
         fs::write(&self.input_file, code).context("failed to write source code")?;
+        match fs::read_to_string(&self.input_file) {
+            Ok(content) => println!("Successfully read: {:?}", content),
+            Err(e) => eprintln!("Error reading file: {}", e),
+        }
         fs::set_permissions(&self.input_file, PermissionsExt::from_mode(0o777))
             .context("failed to set source permissions")?;
+        let s: String = code.chars().take(40).collect();
+        println!("Code: {:?}", s);
         println!("Wrote {} bytes of source to {}", code.len(), self.input_file.display());
         Ok(())
     }
@@ -194,6 +206,7 @@ impl Sandbox {
 
 /// Reads a file from the given path
 fn read(path: &Path) -> Result<Option<Vec<u8>>> {
+    println!("reading: {:?}", path);
     let f = match File::open(path) {
         Ok(f) => f,
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(None),
@@ -201,7 +214,7 @@ fn read(path: &Path) -> Result<Option<Vec<u8>>> {
     };
     let mut f = BufReader::new(f);
     let metadata = fs::metadata(path).expect("failed to read metadata");
-
+    println!("meta: {:?}", metadata);
     let mut buffer = vec![0; metadata.len() as usize];
     f.read_exact(&mut buffer).expect("buffer overflow");
     Ok(Some(buffer))
@@ -216,14 +229,15 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
     use std::os::unix::process::ExitStatusExt;
 
     let timeout = TIMEOUT;
-    println!("executing command!");
+    println!("executing command: {:?}", command);
     let output = command.output().await.context("failed to start compiler")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let id = stdout.lines().next().context("missing compiler ID")?.trim();
     let stderr = &output.stderr;
-
+    
     let mut command = docker_command!("wait", id);
+    println!("ID: {:?}\nwait: {:?}", id, command);
 
     let timed_out = match tokio::time::timeout(timeout, command.output()).await {
         Ok(Ok(o)) => {
@@ -236,17 +250,19 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
     };
 
     let mut command = docker_command!("logs", id);
+    println!("logs: {:?}", command);
     let mut output = command.output().await.context("failed to get output from compiler")?;
-
-    let mut command = docker_command!(
-        "rm", // Kills container if still running
-        "--force", id
-    );
-    command.stdout(std::process::Stdio::null());
-    command.status().await.context("failed to remove compiler")?;
+    println!("op: {:?}", output);
+    // let mut command = docker_command!(
+    //     "rm", // Kills container if still running
+    //     "--force", id
+    // );
+    // println!("rm: {:?}", command);
+    // command.stdout(std::process::Stdio::null());
+    // command.status().await.context("failed to remove compiler")?;
 
     let code = timed_out.context("compiler timed out")?;
-
+    println!("timedout: {:?}", code);
     output.status = code;
     output.stderr = stderr.to_owned();
 

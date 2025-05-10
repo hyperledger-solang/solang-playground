@@ -8,7 +8,8 @@ import { store } from "@/state";
 // import ContractExplorer from "./ContractExplorer";
 import dynamic from "next/dynamic";
 
-const ContractExplorer = dynamic(() => import("./ContractExplorer"), { ssr: false });
+const CompileExplorer = dynamic(() => import("./CompileExplorer"), { ssr: false });
+const DeployExplorer = dynamic(() => import("./DeployExplorer"), { ssr: false });
 
 function Sidebar() {
   const { sidebar } = useAppStore();
@@ -18,8 +19,12 @@ function Sidebar() {
     return <Settings />;
   }
 
-  if (sidebar === SidebarView.CONTRACT) {
-    return <ContractExplorer />;
+  if (sidebar === SidebarView.COMPILE) {
+    return <CompileExplorer />;
+  }
+
+  if (sidebar === SidebarView.DEPLOY) {
+    return <DeployExplorer />;
   }
 
   return (
