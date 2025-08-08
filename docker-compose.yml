@@ -8,4 +8,7 @@ services:
       - /tmp:/tmp
     ports:
       - "9000:9000"
+      - "3000:3000"  # Expose Next.js port
+    environment:
+      - DOCKER_ENV=true
     runtime: sysbox-runc

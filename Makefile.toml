@@ -4,7 +4,7 @@ skip_core_tasks = true
 
 [tasks.deps-wasm]
 script = '''
-cargo install -f wasm-bindgen-cli --version 0.2.99
+cargo install wasm-bindgen-cli
 '''
 
 [tasks.deps-npm]

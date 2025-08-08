@@ -59,7 +59,7 @@ async fn main() -> std::io::Result<()> {
                     .add(("Cross-Origin-Opener-Policy", "same-origin"))
                     .add(("Cross-Origin-Embedder-Policy", "require-corp")),
             )
-            .route("/compile", post().to(route_compile));
+            .route("/compile", post().to(|body| route_compile(body)));
 
         // Serve frontend files if configured via CLI
         match frontend_folder {

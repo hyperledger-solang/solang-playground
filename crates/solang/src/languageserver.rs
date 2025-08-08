@@ -2065,7 +2065,7 @@ impl LanguageServer for SolangServer {
 
     async fn initialized(&self, _: InitializedParams) {
         self.client
-            .log_message(MessageType::INFO, "Solang language server initialized".to_string())
+            .log_message(MessageType::INFO, format!("Solang language server initialized"))
             .await;
     }
 
@@ -2592,7 +2592,7 @@ impl LanguageServer for SolangServer {
         let mut locations: Vec<_> = caches
             .iter()
             .flat_map(|(p, cache)| {
-                let uri = Url::parse(p).unwrap();
+                let uri = Url::parse(&p).unwrap();
                 cache
                     .references
                     .iter()

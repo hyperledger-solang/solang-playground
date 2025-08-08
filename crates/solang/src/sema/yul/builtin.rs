@@ -7,9 +7,7 @@ pub struct YulBuiltinPrototype {
     pub name: &'static str,
     pub no_args: u8,
     pub no_returns: u8,
-    #[allow(dead_code)]
     pub doc: &'static str,
-    #[allow(dead_code)]
     pub ty: YulBuiltInFunction,
     pub stops_execution: bool,
     pub availability: [bool; 3],
