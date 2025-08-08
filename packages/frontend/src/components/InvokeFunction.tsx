@@ -165,7 +165,7 @@ function InvokeFunction({ method }: { method: FunctionSpec }) {
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center">
+          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{marginTop: '2px'}}>
             <span>{method.name}</span>
             <ChevronsLeftRightEllipsis className="ml-auto" />
           </Button>

@@ -8,6 +8,10 @@ export interface FunctionSpec {
   outputs: OutputSpec[];
 }
 
+export interface ContractsDeployed {
+  [key: string]: IDL;
+}
+
 interface InputSpec {
   doc: string;
   name: string;
@@ -38,4 +42,5 @@ export interface Contract {
   address: string | null;
   methods: IDL;
   invoking: boolean;
+  deployed: ContractsDeployed;
 }

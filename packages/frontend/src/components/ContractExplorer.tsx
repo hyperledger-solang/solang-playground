@@ -2,12 +2,28 @@
 
 import { store } from "@/state";
 import { useSelector } from "@xstate/store/react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Hide from "./Hide";
 import InvokeFunction from "./InvokeFunction";
 
 function ContractExplorer() {
   const idl = useSelector(store, (state) => state.context.contract?.methods) || [];
+  const deployed = useSelector(store, (state) => state.context.contract?.deployed) || {};
+  const [keys, setKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    const ks = Object.keys(deployed)
+    setKeys(ks)
+  }, [deployed])
+
+  const toggleCollapsed = (e: React.MouseEvent<HTMLElement>, k: string) => {
+    const target = e.target as HTMLElement;
+    const div = target.nextElementSibling as HTMLElement | null;
+
+    if(div) {
+      div.style.display = div.style.display === 'none' ? 'block' : 'none'
+    }
+  }
 
   return (
     <div className=" ">
@@ -16,9 +32,26 @@ function ContractExplorer() {
       </div>
       <div className="mt-10 relative z-10 px-3 overflow-x-clip">
         <div className="flex flex-col gap-2">
-          {idl.map((item) => (
-            <InvokeFunction key={item.name} method={item} />
-          ))}
+          {
+            keys.map(k => (
+            <div key={k} >
+              <p
+                style={{cursor: 'pointer'}} 
+                onClick={e => toggleCollapsed(e, k)}
+              >
+                {`${k.substring(0, 5)}..${k.substring(50)}`}
+              </p>
+              <div style={{display: 'none'}}>
+                { 
+                  deployed[k].map(item => (
+                    <InvokeFunction key={item.name} method={item} />
+                  ))
+                }
+              </div>
+            </div>
+            )
+          )
+          }
         </div>
 
         <Hide open={idl.length === 0}>

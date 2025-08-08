@@ -36,6 +36,7 @@ export const events = {
       }
     }
   },
+  addDeployedContract(context: Context, event: { basePath: string; name: string, contract: any }) {},
   addFile(context: Context, event: { basePath: string; name: string; content: string }) {
     const path = createPath(event.basePath, event.name);
     const file = {
@@ -130,6 +131,10 @@ export const events = {
   //   context.contract.methods = event.idl;
   // },
   updateContract(context: Context, event: Partial<Contract>) {
+    const addr = event.address;
+    if(addr && Object.keys(context.contract.deployed).indexOf(addr || '') == -1) {
+      context.contract.deployed[addr] = context.contract.methods
+    }
     Object.assign(context.contract, event);
   },
 };

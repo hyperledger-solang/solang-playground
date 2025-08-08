@@ -6,8 +6,25 @@ import { Button } from "./ui/button";
 import { FaCog } from "react-icons/fa";
 import { SidebarView, useAppStore } from "@/app/state";
 import { Files, FunctionSquare, LucideFiles, SquareFunction, Star } from "lucide-react";
+import useCompile from "@/hooks/useCompile";
+import useDeploy from "@/hooks/useDeploy";
+import { useState } from "react";
 
 function SidePanel() {
+  const { compileFile } = useCompile();
+  const { deployWasm } = useDeploy();
+  const [contract, setContract] = useState<null | Buffer>(null);
+
+  const handleCompile = async () => {
+    const result = await compileFile()
+    setContract(result.data)
+    console.log('[tur] compilation result', result)
+  }
+
+  const handleDeploy = async () => {
+    const result = await deployWasm(contract)
+    console.log('[tur] deployed?', result)
+  }
   const setSidebar = useAppStore((state) => state.setSidebar);
   return (
     <div className="w-[50px] flex flex-col border-r h-full py-3 items-center">
@@ -20,6 +37,12 @@ function SidePanel() {
         </Button>
         <Button onClick={() => setSidebar(SidebarView.CONTRACT)} variant="outline" size="icon">
           <SquareFunction size={30} />
+        </Button>
+        <Button onClick={handleCompile} variant="outline" size="icon">
+          {"C"}
+        </Button>
+        <Button onClick={handleDeploy} variant="outline" size="icon">
+          {"D"}
         </Button>
       </div>
       <div className="">
