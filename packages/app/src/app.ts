@@ -58,7 +58,7 @@ export const downloadBlob = (code: number[]): void => {
   const blob = new Blob([new Uint8Array(code).buffer]);
 
   const a = document.createElement('a');
-  a.download = 'result.contract';
+  a.download = 'result.wasm';
   a.href = URL.createObjectURL(blob);
   a.dataset.downloadurl = ['application/json', a.download, a.href].join(':');
   a.style.display = 'none';
@@ -171,6 +171,7 @@ export default class App {
         );
 
         console.log("Compilation result: ", result);
+        client.printToConsole(proto.MessageType.Info, "Compilation result: " + JSON.stringify(result));
 
         // If the compilation was successful, download the wasm blob and print a success message
         if (result.type === 'OK') {

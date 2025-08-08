@@ -14,7 +14,7 @@ npm install
 
 [tasks.deps-docker]
 script = '''
-docker pull ghcr.io/hyperledger/solang@sha256:8776a9bd756664f7bf8414710d1a799799bf6fedc1c8f9f0bda17e76749dea7a 
+docker pull ghcr.io/hyperledger/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d 
 '''
 
 [tasks.deps]
@@ -118,7 +118,7 @@ docker build -t solang-playground .
 script = '''
 docker run \
 	  --runtime=sysbox-runc \
-	  --name playground \
+	  --name playground-makee \
 	  --detach \
 	  --volume /tmp:/tmp \
 	  --publish 9000:9000 \
