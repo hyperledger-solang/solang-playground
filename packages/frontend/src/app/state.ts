@@ -30,7 +30,8 @@ export const useSettingsStore = create(
 export enum SidebarView {
   FILE_EXPLORER = "FILE-EXPLORER",
   SETTINGS = "SETTINGS",
-  CONTRACT = "CONTRACT",
+  COMPILE = "COMPILE",
+  DEPLOY = "DEPLOY",
 }
 
 export const useAppStore = create(

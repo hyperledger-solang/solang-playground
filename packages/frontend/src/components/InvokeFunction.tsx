@@ -58,10 +58,10 @@ const defaultState = {
   result: { type: "", value: "" },
   name: "",
 };
-function InvokeFunction({ method }: { method: FunctionSpec }) {
+function InvokeFunction({ contractAddress, method }: { contractAddress: string, method: FunctionSpec }) {
   const [sg, setSignature] = useState<ReturnType<typeof createLogSingnature>>(defaultState);
   const [args, setArgs] = useState<Record<string, { type: string; value: string; subType: string }>>({});
-  const contractAddress = useSelector(store, (state) => state.context.contract?.address);
+  // const contractAddress = useSelector(store, (state) => state.context.contract?.address);
   const [logs, setLogs] = useState<string[]>(["Hello wrold", "Mango World"]);
   const toastId = useId();
   const [block, setBlock] = useState(false);

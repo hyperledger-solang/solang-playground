@@ -15,8 +15,10 @@ export interface ICompilationResult {
 
 function useCompile() {
     const code = useFileContent();
+    const selected = useSelector(store, (state) => state.context.currentFile);
 
     const compileFile = async (): Promise<ICompilationResult> => {
+        console.log('[tur] [compileFile] code:', code)
         if (!code) {
             const err  ="Error: No Source Code Found"
             logger.error(err);
@@ -63,6 +65,7 @@ function useCompile() {
         if (success) {
             if (result.type === "SUCCESS") {
             const wasm = result.payload.wasm;
+            store.send({ type: "updateCurrentWasm", path: selected || '', buff: wasm });
             logger.info("Contract compiled successfully!");
             return {
                 data: wasm,
@@ -77,7 +80,7 @@ function useCompile() {
             logger.error(message);
             err = message
         }
-
+        console.log('[tur] compilatiion error:', err)
         return {
             data: null,
             err
