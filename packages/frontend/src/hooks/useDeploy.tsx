@@ -1,48 +1,48 @@
 
-import { EditorContext } from "@/context/EditorProvider";
-import { useFileContent } from "@/state/hooks";
+"use client";
+
 import { useSelector } from "@xstate/store/react";
-import { useContext } from "react";
 import { store } from "@/state";
-import { logger } from "@/state/utils";
-import { Keypair, Networks } from "@stellar/stellar-sdk";
 import generateIdl from "@/lib/idl-wasm";
-import deployStellerContract from "@/lib/deploy-steller";
 import { FunctionSpec } from "@/types/idl";
 import useCompile from "./useCompile";
+import ContractService from "@/lib/services/server/contract";
+import { IParam } from "@/lib/services/types/common";
+import { Network_Url } from "@/constants";
 
 
 function useDeploy() {
     const {compileFile} = useCompile();
+    
     const selected = useSelector(store, (state) => state.context.currentFile);
     const currWasm = useSelector(store, (state) => state.context.currentWasm);
 
 
-    const deployWasm = async (contract: null | Buffer) => {
-        console.log('[tur] deploying', contract)
+    const deployWasm = async (wasmBuf: null | Buffer, ctorParamList: IParam[]) => {
+        console.log('[tur] deploying', wasmBuf)
         
         if(currWasm.path.indexOf(selected || '') > -1) {
-            contract = currWasm.buff
-        } else if(!contract && selected && selected !== 'explorer') {
+            wasmBuf = currWasm.buff
+        } else if(!wasmBuf && selected && selected !== 'explorer') {
             const r = await compileFile();
-            contract = r.data
+            wasmBuf = r.data
         }
         
-        if (!contract) {
+        if (!wasmBuf) {
             return;
         }
         try {
-            const keypair = Keypair.random();
+            const contractService = new ContractService(Network_Url.LOCAL)
         
-            logger.info("Deploying contract...");
-            const idl = await generateIdl(contract);
+            const idl = await generateIdl(wasmBuf);
             const fltrd = idl.filter((i: FunctionSpec) => i.name.indexOf('constructor') == -1);
             store.send({ type: "updateContract", methods: fltrd });
-            const contractAddress = await deployStellerContract(contract, keypair, Networks.TESTNET);
-            logger.info("Contract deployed successfully!");
-            contractAddress && store.send({ type: "updateContract", address: contractAddress });
+            const contractAddress = await contractService.deployContract(wasmBuf, ctorParamList);
+            console.log("Contract deployed successfully!", contractAddress);
+            if(contractAddress) store.send({ type: "updateContract", address: contractAddress });
 
-        } catch {
+        } catch (e) {
+            console.log('deployment error', e)
         return !1
         }
         return !0

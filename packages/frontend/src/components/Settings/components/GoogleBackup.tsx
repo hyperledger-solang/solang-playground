@@ -17,18 +17,18 @@ function GoogleBackup() {
       return signIn();
     }
 
-    if (!(session as any).accessToken) {
-      return;
-    }
+    // if (!(session as any).accessToken) {
+    //   return;
+    // }
 
     setLoading(true);
     logger.info("Creating Google Drive Backup");
 
     const state = store.getSnapshot();
 
-    await createGoogleBackup(state.context.explorer, (session as any).accessToken, state.context.files).finally(() => {
-      setLoading(false);
-    });
+    // await createGoogleBackup(state.context.explorer, (session as any).accessToken, state.context.files).finally(() => {
+    //   setLoading(false);
+    // });
 
     logger.info("Google Drive Backup Complete");
   }

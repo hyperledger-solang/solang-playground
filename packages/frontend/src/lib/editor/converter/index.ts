@@ -127,7 +127,7 @@ function isRangeReplace(v: Partial<monaco.IRange> | RangeReplace): v is RangeRep
 export class MonacoToProtocolConverter {
   public constructor(protected readonly _monaco: typeof monaco) {}
 
-  asPosition(lineNumber: undefined | null, column: undefined | null): {};
+  asPosition(lineNumber: undefined | null, column: undefined | null): Partial<Position>;
   asPosition(lineNumber: number, column: undefined | null): Pick<Position, "line">;
   asPosition(lineNumber: undefined | null, column: number): Pick<Position, "character">;
   asPosition(lineNumber: number, column: number): Position;

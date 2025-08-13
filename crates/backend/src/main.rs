@@ -11,6 +11,7 @@ use actix_web::{
 };
 
 use backend::{route_compile, Opts};
+use actix_cors::Cors;
 
 pub struct FrontendState {
     pub frontend_folder: String,
@@ -51,15 +52,24 @@ async fn main() -> std::io::Result<()> {
         let frontend_folder = opts.frontend_folder.clone();
 
         let mut app = App::new()
-            .service(web::resource("/health").to(health))
-            // Enable GZIP compression
-            .wrap(middleware::Compress::default())
-            .wrap(
-                DefaultHeaders::new()
-                    .add(("Cross-Origin-Opener-Policy", "same-origin"))
-                    .add(("Cross-Origin-Embedder-Policy", "require-corp")),
-            )
-            .route("/compile", post().to(|body| route_compile(body)));
+        // Add CORS middleware here
+        .wrap(
+            Cors::default()
+                .allow_any_origin()   // allows all origins, including localhost
+                .allow_any_method()   // allows GET, POST, etc.
+                .allow_any_header()   // allows all headers
+                .supports_credentials() // allow cookies/auth if needed
+                .max_age(3600),         // preflight cache duration
+        )
+        .service(web::resource("/health").to(health))
+        // Enable GZIP compression
+        .wrap(middleware::Compress::default())
+        .wrap(
+            DefaultHeaders::new()
+                .add(("Cross-Origin-Opener-Policy", "same-origin"))
+                .add(("Cross-Origin-Embedder-Policy", "require-corp")),
+        )
+        .route("/compile", post().to(|body| route_compile(body)));
 
         // Serve frontend files if configured via CLI
         match frontend_folder {

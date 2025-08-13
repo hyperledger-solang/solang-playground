@@ -1,8 +1,24 @@
+import { rpc } from "@stellar/stellar-sdk";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export async function getNetworkDetails(server: rpc.Server): Promise<{ 
+  friendBotUrl: string; 
+  passphrase: string; 
+  protocolVersion: string 
+}> {
+  const network = await server.getNetwork();
+  
+
+  return {
+    friendBotUrl: (network.friendbotUrl as string),
+    passphrase: network.passphrase,
+    protocolVersion: network.protocolVersion
+  }
 }
 
 export const downloadBlob = (code: number[]): void => {

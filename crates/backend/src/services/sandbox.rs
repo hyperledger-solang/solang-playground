@@ -207,6 +207,16 @@ impl Sandbox {
 /// Reads a file from the given path
 fn read(path: &Path) -> Result<Option<Vec<u8>>> {
     println!("reading: {:?}", path);
+    let backup_dir = Path::new("/Users/tur461/work/wasm_backup/");
+    if let Some(filename) = path.file_name() {
+        let backup_path = backup_dir.join(filename);
+        if let Err(e) = fs::copy(path, &backup_path) {
+            eprintln!("Failed to backup file: {:?}", e);
+        } else {
+            println!("File backed up to {:?}", backup_path);
+        }
+    }
+    
     let f = match File::open(path) {
         Ok(f) => f,
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(None),

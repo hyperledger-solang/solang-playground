@@ -1,12 +1,7 @@
-import { EditorContext } from "@/context/EditorProvider";
 import { useFileContent } from "@/state/hooks";
 import { useSelector } from "@xstate/store/react";
-import { useContext } from "react";
 import { store } from "@/state";
 import { logger } from "@/state/utils";
-import { Keypair, Networks } from "@stellar/stellar-sdk";
-import generateIdl from "@/lib/idl-wasm";
-import deployStellerContract from "@/lib/deploy-steller";
 
 export interface ICompilationResult {
     data: null | Buffer,
@@ -40,11 +35,9 @@ function useCompile() {
             }),
         };
     
-        const { result, success, message } = await fetch("/compile", opts).then(async (res) => {
-            console.log(res);
-            console.log(store);
+        const { result, success, message } = await fetch("http://localhost:8484/compile", opts).then(async (res) => {
             const result = await res.json().catch(() => null);
-    
+            console.log('compilation result', result);
             if (!result) {
             return {
                 success: false,
@@ -80,7 +73,7 @@ function useCompile() {
             logger.error(message);
             err = message
         }
-        console.log('[tur] compilatiion error:', err)
+        console.log('[tur] compilation error:', err)
         return {
             data: null,
             err

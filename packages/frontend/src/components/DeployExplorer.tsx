@@ -3,16 +3,37 @@
 import { store } from "@/state";
 import { useSelector } from "@xstate/store/react";
 import React, { useEffect, useState } from "react";
-import Hide from "./Hide";
 import InvokeFunction from "./InvokeFunction";
 import useDeploy from "@/hooks/useDeploy";
 import { Button } from "./ui/button";
-import { Select, SelectContent, SelectIcon, SelectItem, SelectItemText, SelectPortal, SelectTrigger, SelectValue, SelectViewport } from "@radix-ui/react-select";
-import { ArchiveX, ChevronDownIcon, Copy, LucideDelete } from "lucide-react";
+import { ArchiveX, Copy } from "lucide-react";
 import useCompile from "@/hooks/useCompile";
+import { useFileContent } from "@/state/hooks";
+import { Input } from "./ui/input";
+import { toast } from "sonner";
+import { IParam } from "@/lib/services/types/common";
+import { mapIfValid } from "@/utils";
+
+export function extractConstructorParamTypes(contractCode: string): string[] {
+  const match = contractCode.match(/constructor\s*\(([\s\S]*?)\)/);
+
+  if (!match || !match[1].trim()) {
+    return [];
+  }
+
+  return match[1]
+    .split(",")
+    .map(param => {
+      const cleaned = param.trim();
+      const typeMatch = cleaned.match(/^([^\s]+)/);
+      return typeMatch ? typeMatch[1] : "";
+    })
+    .filter((t): t is string => Boolean(t));
+}
 
 function DeployExplorer() {
   const {compileFile} = useCompile();
+  const code = useFileContent();
   
   const {deployWasm} = useDeploy();
   const currFileTabSelected = useSelector(store, (state) => state.context.currentFile);
@@ -20,16 +41,24 @@ function DeployExplorer() {
   const currWasm = useSelector(store, (state) => state.context.currentWasm);
   const deployed = useSelector(store, (state) => state.context.contract?.deployed) || {};
   const [keys, setKeys] = useState<string[]>([]);
+  const [paramTypesList, setParamTypesList] = useState<string[]>([]);
+  const [paramList, setParamList] = useState<IParam[]>([]);
   const [copied, setCopied] = useState<boolean>(!1);
   const [selected, setSelected] = useState<string>(compiled.length ? compiled[0].path : '');
 
   useEffect(() => {
     console.log('[tur] current file tab:', currFileTabSelected)
-    currFileTabSelected && setSelected(currFileTabSelected || '')
+    if(currFileTabSelected) setSelected(currFileTabSelected || '')
+    let paramTypes = extractConstructorParamTypes(code);
+    setParamTypesList(paramTypes)
+    console.log('[currFileTabSelected] paramTypes:', paramTypes);
   }, [currFileTabSelected])
   
   useEffect(() => {
     console.log('[tur] compiled updated:', compiled)
+    let paramTypes = extractConstructorParamTypes(code);
+    setParamTypesList(paramTypes)
+    console.log('[compiled] paramTypes:', paramTypes);
   }, [compiled])
 
   const handleSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -64,6 +93,10 @@ function DeployExplorer() {
   }
 
   const handleDeploy = async () => {
+    if(paramList.length !== paramTypesList.length) {
+      toast.error(`Error: fill all constructor parameters!`);
+      return
+    }
     let contract: Buffer | null = null;
     console.log('[tur] selected path', selected)
     console.log('[tur] curr wasm path', currWasm.path)
@@ -72,7 +105,7 @@ function DeployExplorer() {
       const res = await compileFile();
       contract = res.data;
     }
-    const result = await deployWasm(contract)
+    const result = await deployWasm(contract, paramList)
     console.log('[tur] deployed?', result)
   }
 
@@ -91,6 +124,52 @@ function DeployExplorer() {
     console.log('[tur] keys:', keys)
     store.send({ type: 'deleteDeployed', addr: k})
   }
+
+  useEffect(() => {
+    console.log('[tur] useEffect paramList:', paramList)
+  }, [paramList])
+
+  const handleParam = (
+    v: string, 
+    i: number, 
+    t: string
+  ) => {
+    console.log("Changed value:", v, i, t)
+    const params = paramList;
+    
+    if(!v) {
+      params.splice(i, 1)
+    }// do other validation of v against the type at i 
+    if(v) {
+      v = mapIfValid(v, t);
+      if(v === null) {
+        return
+      }
+      if(params.length <= i) {
+        params.push({seq: i, value: v, type: t})
+      } else {
+        params[i] = {seq: i, value: v, type: t}
+      }
+    }
+    setParamList(params)
+    console.log('params', params, 'paramList', paramList)
+  }
+
+  const handleBlurOrEnter = (
+    e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
+    i: number,
+    t: string
+  ) => {
+  if ("key" in e) {
+    // KeyDown event
+    if (e.key === "Enter") {
+      handleParam(e.currentTarget.value, i, t);
+    }
+  } else {
+    // Blur event
+    handleParam(e.currentTarget.value, i, t);
+  }
+};
 
   return (
     <div className=" ">
@@ -119,6 +198,24 @@ function DeployExplorer() {
             
           </div>
         </div>
+        {
+          paramTypesList.length > 0 &&
+          <div className="relative inline-block w-48 mb-2 mt-2">
+            <div className="flex flex-col gap-2">
+                {
+                  paramTypesList.map((t, i) => (
+                    <Input 
+                      key={`${t}__${i}`} 
+                      placeholder={t} 
+                      className="h-8 s-full rounded-sm"
+                      onBlur={e => handleBlurOrEnter(e, i, t)} 
+                      onKeyDown={e => handleBlurOrEnter(e, i, t)} 
+                    />
+                  ))
+                }
+            </div>
+          </div>
+        }
         <div className="relative inline-block w-48">
           <div>
             <Button
@@ -134,10 +231,10 @@ function DeployExplorer() {
         {keys.length ? <p style={{marginTop: '1rem', marginBottom: '1rem'}}>DEPLOYED</p> : <></>}
         <div className="flex flex-col gap-2">
           {
-            keys.map(k => (
-            <div key={k}>
+            keys.map((k, i) => (
+            <div key={`main_${k}__${i}`}>
               <p
-                key={k}
+                key={`sub_0_${k}__${(i+1) * 2}`}
                 style={{display: 'flex', justifyContent: 'space-between'}}
               >
                 <span style={{cursor: 'pointer'}} onClick={e => toggleCollapsed(e, k)}>
@@ -147,10 +244,10 @@ function DeployExplorer() {
                 {/* {copied && <span style={{ color: "green" }}>Copied!</span>} */}
                 <ArchiveX style={{cursor: 'pointer'}} size={16} onClick={e => handleRemoveDeployed(k)}/>                
               </p>
-              <div key={k} style={{display: 'none'}}>
+              <div key={`sub_1_${k}__${(i+1) * 3}`} style={{display: 'none'}}>
                 { 
-                  deployed[k] && deployed[k].map(item => (
-                    <InvokeFunction contractAddress={k} key={item.name} method={item} />
+                  deployed[k] && deployed[k].map((item, i) => (
+                    <InvokeFunction contractAddress={k} key={`${item.name}__${i}__${item.type}`} method={item} />
                   ))
                 }
               </div>

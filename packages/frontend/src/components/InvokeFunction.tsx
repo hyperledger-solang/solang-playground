@@ -1,8 +1,6 @@
 "use client";
 
 import { Fragment, useId, useState } from "react";
-import { store } from "@/state";
-import { useSelector } from "@xstate/store/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -12,12 +10,10 @@ import { FunctionSpec } from "@/types/idl";
 import { DialogTrigger } from "@radix-ui/react-dialog";
 import { ChevronsLeftRightEllipsis } from "lucide-react";
 import { logger } from "@/state/utils";
-import { callContract } from "@/actions";
-import { networkRpc } from "@/lib/web3";
-import { Server } from "@stellar/stellar-sdk/rpc";
-import { Networks, scValToNative, xdr, rpc } from "@stellar/stellar-sdk";
-import { withError } from "@/lib/action-util";
+import { scValToNative, xdr } from "@stellar/stellar-base";
 import Spinner from "./Spinner";
+import ContractService from "@/lib/services/server/contract";
+import { Network_Url } from "@/constants";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -80,79 +76,95 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
   const handleInvoke = async () => {
     try {
-      const server = new Server(networkRpc[Networks.TESTNET]);
+      if (!contractAddress) {
+        toast.error("No contract address provided", { id: toastId });
+        logger.error("No contract address provided.");
+        return;
+      }
+
       const argsArray = Object.values(args);
-      const data = {
-        contractId: contractAddress!,
+      const requestData = {
+        contractId: contractAddress,
         method: method.name,
         args: argsArray,
       };
 
       logger.info("Invoking Contract function...");
       setBlock(true);
-      logger.info(JSON.stringify(data, null, 2));
+      logger.info(JSON.stringify(requestData, null, 2));
       toast.loading("Invoking function...", { id: toastId });
+      console.log("Invoke Data", requestData);
 
-      const result = await withError(callContract(data));
+      const contractService = new ContractService(Network_Url.LOCAL);
+      const response = await contractService.invokeContract(requestData);
+      const { resultXdr, diagnosticEventsXdr, status } = response;
 
-      let response;
-      while (true) {
-        response = await server.getTransaction(result.hash);
-        if (response.status !== "NOT_FOUND") {
-          break;
+      console.log("Invoke Result", resultXdr);
+
+      let retVal: any = null;
+      let logs: string[] = [];
+
+      for (const eventXdr of Array.from(diagnosticEventsXdr || [])) {
+        try {
+          const diagnosticEvent = xdr.DiagnosticEvent.fromXDR(eventXdr as any, "base64");
+          const eventBody = diagnosticEvent.event().body().v0();
+
+          const topics = eventBody.topics().map(scValToNative);
+          const eventData = scValToNative(eventBody.data());
+
+          if (topics.length && topics[0] === "fn_return") {
+            retVal = eventData;
+            console.log("Fn Return Val", retVal);
+          }
+
+          if (topics.includes("log")) {
+            try {
+              logs.push(JSON.stringify(eventData));
+            } catch {
+              logs.push(String(eventData));
+            }
+          }
+        } catch (e) {
+          logger.error(`Error parsing diagnostic event: ${String(e)}`);
         }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-      const logs =
-        response.diagnosticEventsXdr
-          ?.map((eventXdr) => {
-            const diagnosticEvent = eventXdr;
-            const contractEvent = diagnosticEvent.event();
-            const eventBody = contractEvent.body().v0();
-            const data = scValToNative(eventBody.data());
-            const topics = eventBody.topics().map((topic) => scValToNative(topic));
-
-            if (topics.includes("log")) {
-              try {
-                return JSON.stringify(data);
-              } catch (error) {
-                return data;
-              }
-            }
-
-            return null as never;
-          })
-          .filter(Boolean) || [];
+      logs = logs.filter(Boolean);
 
       setLogs(logs);
+      console.log("Invoke Logs", logs);
 
-      if (response.status === "SUCCESS") {
-        logger.info("Transaction successful.");
-        logger.info(`TxId: ${result.hash}`);
-        logger.info(`Contract Logs: \n${logs.join("\n")}`);
-        if (response.returnValue) {
-          const retVal = scValToNative(response.returnValue);
-          setInvkRetVal(retVal);
-          logger.info(`TX Result: ${retVal}`);
-          const logSignature = createLogSingnature(method, args, scValToNative(response.returnValue));
-          setBlock(false);
-          setSignature(logSignature);
-        }
+      if (retVal !== null) {
+        logger.info(`TX Result: ${retVal}`);
+        const logSignature = createLogSingnature(method, args, retVal);
+        setInvkRetVal(retVal);
+        setSignature(logSignature);
+      }
+
+      setBlock(false);
+
+      if (status === "SUCCESS") {
         toast.success(`Function invoked successfully`, { id: toastId });
+        logger.info("Transaction successful.");
+        logger.info(`TxId: ${response.hash}`);
+        logger.info(`Contract Logs:\n${logs.join("\n")}`);
         return response;
       } else {
+        console.log("Invoke Failure", response);
         logger.error("Transaction failed.");
-        logger.info(`TxId: ${result.hash}`);
+        logger.info(`TxId: ${resultXdr.hash}`);
         toast.error(`Transaction failed`, { id: toastId });
         throw new Error("Transaction failed");
       }
     } catch (error: any) {
+      console.log("Invoke Error", error);
       toast.error(`Error: ${error.message}`, { id: toastId });
+    } finally {
+      setInvkRetVal(null);
+      setBlock(false);
     }
-    setInvkRetVal(null);
-    setBlock(false);
   };
+
 
   return (
     <Fragment>

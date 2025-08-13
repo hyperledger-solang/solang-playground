@@ -13,9 +13,11 @@ export async function callContract({
   args: { type: string; value: string; subType: string }[];
 }) {
   try {
+    console.log("[callContract] Invoking contract:", contractId, method, args);
     const result = await invokeContract({ contractId, method, args });
     return result;
   } catch (error: any) {
+    console.error("[callContract] Error invoking contract", error);
     return ActionError(error?.message || "Error invoking contract");
   }
 }

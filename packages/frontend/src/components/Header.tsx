@@ -2,19 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { Keypair, Networks } from "@stellar/stellar-sdk";
 import { useSelector } from "@xstate/store/react";
-import deployStellerContract from "@/lib/deploy-steller";
-import generateIdl from "@/lib/idl-wasm";
 import { cn } from "@/lib/utils";
 import { store } from "@/state";
 import { useExplorerItem, useFileContent } from "@/state/hooks";
-import { logger } from "@/state/utils";
-import DeployToSteller from "./DeployToSteller";
 import Hide from "./Hide";
 import IconButton from "./IconButton";
 import useCompile from "@/hooks/useCompile";
 import useDeploy from "@/hooks/useDeploy";
+import { FileType } from "@/types/explorer";
+import { get } from "lodash";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -84,16 +81,21 @@ function Header() {
   const tabs = useSelector(store, (state) => state.context.tabs);
   const containerRef = useRef<HTMLDivElement>(null);
   const [contract, setContract] = useState<null | Buffer>(null);
+  const selected = useSelector(store, (state) => state.context.currentFile);
+const [name, setName] = useState<string>('');
+  const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
+
+  useEffect(() => {
+      if(selected && selected !== 'home') {
+        setName(obj.name);
+      }
+    }, [selected])
 
   const handleCompile = async () => {
     const result = await compileFile()
-    setContract(result.data)
-    console.log('[tur] scompilation result', result)
-  }
-
-  const handleDeploy = async () => {
-    const result = await deployWasm(contract)
-    console.log('[tur] deployed?', result)
+    if(selected && selected !== 'home')
+          store.send({ type: "addCompiled", path: selected, name });
+    console.log('[-] compilation result', result)
   }
 
   return (
@@ -102,12 +104,6 @@ function Header() {
         <button className="px-3 h-full flex items-center gap-2" onClick={handleCompile}>
           <FaPlay className="text-[#32ba89]" size={12} />
           Compile
-        </button>
-      </div>
-      <div className="border-r">
-        <button className="px-3 h-full flex items-center gap-2" onClick={handleDeploy}>
-          <FaPlay className="text-[#32ba89]" size={12} />
-          Deploy
         </button>
       </div>
       <div className="flex flex-1 w-0">

@@ -1,6 +1,5 @@
 import { isConnected, getAddress, signAuthEntry, signTransaction, setAllowed, isAllowed } from "@stellar/freighter-api";
-import { connected } from "process";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 function useFreighter() {
   const [state, setState] = useState({
