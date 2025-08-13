@@ -1,6 +1,7 @@
 "use client";
 
 import { Api } from "@stellar/stellar-sdk/rpc";
+import { Nullable } from "./types/server";
 
 
 export class RpcService {
@@ -21,11 +22,16 @@ export class RpcService {
         return r
     }
 
-    async fundAccount(accountId: string) {
+    async fundAccount(accountId: string, url: Nullable<string> = null) {
         try {
-            console.log('funding account', accountId)
-            const url = this.url.replace('/rpc', '');
-            const r = await fetch(`${url}/friendbot?addr=${accountId}`)
+            console.log('funding account', accountId, url);
+            let _url: string;
+            if(url) {
+                _url = url + '?addr=';
+            } else {
+                _url = this.url.replace('/rpc', '/friendbot?addr=');
+            }
+            const r = await fetch(`${_url}${accountId}`)
             if(r.ok) {
                 const o = await r.json()
                 // console.log('result:', o) 

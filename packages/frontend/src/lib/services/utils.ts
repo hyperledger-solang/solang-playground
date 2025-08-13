@@ -6,8 +6,8 @@ export function matchEnum<T extends string | number, R>(
 }
 
 // impl for browser
-export async function sha256Buffer(buf: Buffer | Uint8Array): Promise<string> {
-    const data = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+export async function sha256Buffer(buf: Buffer): Promise<string> {
+    const data = new Uint8Array(buf);
 
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));

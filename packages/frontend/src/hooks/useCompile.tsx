@@ -2,6 +2,7 @@ import { useFileContent } from "@/state/hooks";
 import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import { logger } from "@/state/utils";
+import { Network_Url } from "@/constants";
 
 export interface ICompilationResult {
     data: null | Buffer,
@@ -35,7 +36,7 @@ function useCompile() {
             }),
         };
     
-        const { result, success, message } = await fetch("http://localhost:8484/compile", opts).then(async (res) => {
+        const { result, success, message } = await fetch(`${Network_Url.BACKEND_SERVER}/compile`, opts).then(async (res) => {
             const result = await res.json().catch(() => null);
             console.log('compilation result', result);
             if (!result) {

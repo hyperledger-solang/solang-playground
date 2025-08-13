@@ -46,7 +46,7 @@ class ContractService {
     }
 
     async fundAccount(pubKey = this.pubKey()) {
-        await this.rpcService.fundAccount(pubKey);
+        await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
         this.acc = await this.account(pubKey);
     }
 

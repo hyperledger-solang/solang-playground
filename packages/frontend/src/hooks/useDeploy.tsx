@@ -32,7 +32,7 @@ function useDeploy() {
             return;
         }
         try {
-            const contractService = new ContractService(Network_Url.LOCAL)
+            const contractService = new ContractService(Network_Url.TEST_NET)
         
             const idl = await generateIdl(wasmBuf);
             const fltrd = idl.filter((i: FunctionSpec) => i.name.indexOf('constructor') == -1);
