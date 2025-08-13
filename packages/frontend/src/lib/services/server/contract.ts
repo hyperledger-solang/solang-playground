@@ -91,6 +91,7 @@ class ContractService {
     // --network-passphrase <'Test SDF Network ; September 2015'> \
     // --rpc-url <https://horizon-testnet.stellar.org / https://localhost:8000/rpc>
     async deployByWasmHash(ctorParamList: IParam[]) {
+        console.log("Deploying contract:", this.wasmHash.length, ctorParamList);
         const constructorArgs = ctorParamList.map((param) => nativeToScVal(param.value, { type: param.type }));
         const op = this.makeOperation(Op_Type.DEP_CT_WASM, { 
             wasmHash: Buffer.from(this.wasmHash, "hex"),
@@ -183,7 +184,8 @@ class ContractService {
     private buildInvokeOperation(ciData: ContractInvokeI) {
         const mapFn = (val: any, type: string) => {
             try {
-                return nativeToScVal(mapIfValid(val, type), { type });
+                const [v, t] = mapIfValid(val, type);
+                return nativeToScVal(v, { type: t });
             } catch {
                 throw new Error(`Invalid argument "${val}". Expected a valid ${type}`);
             }
@@ -205,6 +207,8 @@ class ContractService {
 
             return mapFn(value, type);
         });
+
+        console.log("[-] scArgs", scArgs);
 
         const contract = new Contract(ciData.contractId);
         return contract.call(ciData.method, ...scArgs);

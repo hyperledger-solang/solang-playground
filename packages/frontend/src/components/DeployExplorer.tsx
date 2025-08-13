@@ -129,31 +129,37 @@ function DeployExplorer() {
     console.log('[tur] useEffect paramList:', paramList)
   }, [paramList])
 
-  const handleParam = (
-    v: string, 
-    i: number, 
-    t: string
-  ) => {
-    console.log("Changed value:", v, i, t)
-    const params = paramList;
-    
-    if(!v) {
-      params.splice(i, 1)
-    }// do other validation of v against the type at i 
-    if(v) {
-      v = mapIfValid(v, t);
-      if(v === null) {
-        return
-      }
-      if(params.length <= i) {
-        params.push({seq: i, value: v, type: t})
-      } else {
-        params[i] = {seq: i, value: v, type: t}
-      }
+  const handleParam = (v: string, i: number, t: string) => {
+  console.log("Changed value:", v, i, t);
+
+  // clone paramList to avoid mutating state directly
+  const params = [...paramList];
+
+  if (!v) {
+    // remove param at index if empty
+    params.splice(i, 1);
+  } else {
+    // validate and map value
+    const [mappedValue, mappedType] = mapIfValid(v, t);
+    console.log("mappedValue", mappedValue, "mappedType", mappedType);
+    if (mappedValue === null || mappedType === "") {
+      console.warn(`Invalid value '${v}' for type '${t}'`);
+      return;
     }
-    setParamList(params)
-    console.log('params', params, 'paramList', paramList)
+
+    const paramEntry = { seq: i, value: mappedValue, type: mappedType };
+
+    if (params.length <= i) {
+      params.push(paramEntry);
+    } else {
+      params[i] = paramEntry;
+    }
   }
+
+  setParamList(params);
+  console.log("params", params, "paramList", paramList);
+};
+
 
   const handleBlurOrEnter = (
     e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
