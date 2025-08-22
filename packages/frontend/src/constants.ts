@@ -5,3 +5,7 @@ export const Network_Url = {
     TEST_NET: 'https://soroban-testnet.stellar.org:443',
     FUTURE_NET: 'https://horizon-futurenet.stellar.org:443',
 }
+
+export const DefaultTimeout = 10000;
+
+export const DefaultFetchCallback = async (response: any) => response.json();

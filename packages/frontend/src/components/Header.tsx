@@ -45,13 +45,15 @@ function TabItem({ path }: { path: string }) {
 }
 
 function TabHome({ path }: { path: string }) {
+
   const active = useSelector(store, (state) => state.context.currentFile === path);
   const itemRef = useRef<HTMLDivElement>(null);
-
+  console.log('item ref:', itemRef.current);
   useEffect(() => {
     if (active && itemRef.current) {
       itemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    console.log('active:', active);
   }, [active]);
 
   return (
@@ -82,9 +84,11 @@ function Header() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [contract, setContract] = useState<null | Buffer>(null);
   const selected = useSelector(store, (state) => state.context.currentFile);
+  // const showSpinnerDialog = useSelector(store, (state) => state.context.showSpinnerDialog);
 const [name, setName] = useState<string>('');
   const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
 
+  console.log('[header] tabs', tabs)
   useEffect(() => {
       if(selected && selected !== 'home') {
         setName(obj.name);

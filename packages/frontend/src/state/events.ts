@@ -11,6 +11,10 @@ import { Contract, ContractsDeployed, IDL } from "@/types/idl";
 import { ICompiled, ICurrentWasm } from "@/types/contracts";
 
 export const events = {
+  setDialogSpinner: (context: Context, event: { show: boolean }) => {
+    context.showSpinnerDialog = event.show;
+    
+  },
   toggleFolder: (context: Context, event: { path: string }) => {
     const folder = get(context, event.path) as FolderType;
     folder.open = !folder.open;

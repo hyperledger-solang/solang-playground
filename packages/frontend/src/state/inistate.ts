@@ -10,7 +10,7 @@ function initState() {
   });
 
   store.send({ type: "setCurrentPath", path: "explorer.items.src.items['main.sol']" });
-  store.send({ type: "setCurrentPath", path: "home" });
+  store.send({ type: "setDialogSpinner", show: false });
 }
 
 export default initState;

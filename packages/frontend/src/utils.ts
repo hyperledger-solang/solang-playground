@@ -1,3 +1,6 @@
+import { DefaultFetchCallback, DefaultTimeout } from "./constants";
+import { FetchOptionsWithTimeoutI } from "./types/common";
+
 export function mapIfValid(v: string, t: string): [any, string] {
   // Normalize type for matching
     type SolType = keyof typeof typeMap;
@@ -94,4 +97,24 @@ export function mapIfValid(v: string, t: string): [any, string] {
     console.log('mapping:', 'incoming:', type, v, 'outgoing:', ...out);
     
     return out;
+}
+
+
+export async function fetchWithTimeout(
+    resource: string, 
+    options: FetchOptionsWithTimeoutI, 
+    callback = DefaultFetchCallback
+) {
+    const { timeout = DefaultTimeout } = options;
+    
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal  
+    }).then(callback);
+    clearTimeout(id);
+
+    return response;
 }

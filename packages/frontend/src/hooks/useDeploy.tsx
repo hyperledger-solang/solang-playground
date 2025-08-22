@@ -9,6 +9,7 @@ import useCompile from "./useCompile";
 import ContractService from "@/lib/services/server/contract";
 import { IParam } from "@/lib/services/types/common";
 import { Network_Url } from "@/constants";
+import { logger } from "@/state/utils";
 
 
 function useDeploy() {
@@ -32,6 +33,7 @@ function useDeploy() {
             return;
         }
         try {
+            store.send({ type: "setDialogSpinner", show: true });
             const contractService = new ContractService(Network_Url.TEST_NET)
         
             const idl = await generateIdl(wasmBuf);
@@ -42,8 +44,11 @@ function useDeploy() {
             if(contractAddress) store.send({ type: "updateContract", address: contractAddress });
 
         } catch (e) {
+            logger.error('Deployment failed')
             console.log('deployment error', e)
-        return !1
+            return !1
+        } finally {
+            store.send({ type: "setDialogSpinner", show: false });
         }
         return !0
     }

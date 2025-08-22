@@ -15,6 +15,7 @@ export const context = {
     autoSave: true,
     autoFormat: true,
   },
+  showSpinnerDialog: false,
   currentFile: "home" as string | null,
   logs: [] as LogType[],
   tabs: new Set<string>(),
