@@ -104,12 +104,12 @@ const [name, setName] = useState<string>('');
 
   return (
     <div className="bg-card h-[35px] text-sm border-b flex select-none">
-      <div className="border-r">
+      {/* <div className="border-r">
         <button className="px-3 h-full flex items-center gap-2" onClick={handleCompile}>
           <FaPlay className="text-[#32ba89]" size={12} />
           Compile
         </button>
-      </div>
+      </div> */}
       <div className="flex flex-1 w-0">
         <div ref={containerRef} className="overflow-x-auto flex scroll-smooth">
           {[...tabs].map((tab) => (
