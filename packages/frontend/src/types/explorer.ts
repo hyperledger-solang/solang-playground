@@ -1,4 +1,3 @@
-import { editor } from "monaco-editor-core";
 
 export enum ExpNodeType {
   FILE = "FILE",

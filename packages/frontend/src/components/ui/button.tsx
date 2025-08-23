@@ -1,6 +1,8 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import Tippy from "@tippyjs/react"
+import "tippy.js/dist/tippy.css"
 
 import { cn } from "@/lib/utils"
 
@@ -37,20 +39,43 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  tooltip?: string | React.ReactNode
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, tooltip, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
-    return (
+
+    const buttonEl = (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       />
     )
+
+    if (tooltip) {
+      return (
+        <Tippy
+          content={
+            <span 
+              className="rounded-md px-2 py-1 text-xs shadow-md"
+            >
+              {tooltip}
+            </span>
+          }
+          placement="bottom"
+          delay={[100, 0]}
+        >
+          <span>{buttonEl}</span>
+        </Tippy>
+      )
+    }
+
+    return buttonEl
   }
 )
+
 Button.displayName = "Button"
 
 export { Button, buttonVariants }

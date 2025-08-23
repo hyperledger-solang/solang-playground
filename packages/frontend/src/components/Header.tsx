@@ -1,16 +1,17 @@
 "use client";
 
-import { cn, downloadBlob } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { useAddConsole } from "@/app/state";
-import { useExplorerItem, useFileContent } from "@/state/hooks";
 import { useSelector } from "@xstate/store/react";
+import { cn } from "@/lib/utils";
 import { store } from "@/state";
-import IconButton from "./IconButton";
-import { useEffect, useRef } from "react";
-import { logger } from "@/state/utils";
+import { useExplorerItem, useFileContent } from "@/state/hooks";
 import Hide from "./Hide";
-import DeployToSteller from "./DeployToSteller";
+import IconButton from "./IconButton";
+import useCompile from "@/hooks/useCompile";
+import useDeploy from "@/hooks/useDeploy";
+import { FileType } from "@/types/explorer";
+import { get } from "lodash";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -44,13 +45,15 @@ function TabItem({ path }: { path: string }) {
 }
 
 function TabHome({ path }: { path: string }) {
+
   const active = useSelector(store, (state) => state.context.currentFile === path);
   const itemRef = useRef<HTMLDivElement>(null);
-
+  console.log('item ref:', itemRef.current);
   useEffect(() => {
     if (active && itemRef.current) {
       itemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    console.log('active:', active);
   }, [active]);
 
   return (
@@ -74,68 +77,39 @@ function TabHome({ path }: { path: string }) {
 }
 
 function Header() {
+  const { compileFile } = useCompile();
+  const { deployWasm } = useDeploy();
   const code = useFileContent();
   const tabs = useSelector(store, (state) => state.context.tabs);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [contract, setContract] = useState<null | Buffer>(null);
+  const selected = useSelector(store, (state) => state.context.currentFile);
+  // const showSpinnerDialog = useSelector(store, (state) => state.context.showSpinnerDialog);
+const [name, setName] = useState<string>('');
+  const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
 
-  async function handleCompile() {
-    if (!code) {
-      return logger.error("Error: No Source Code Found");
-    }
-
-    logger.info("Compiling contract...");
-
-    const opts: RequestInit = {
-      method: "POST",
-      mode: "cors",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: code,
-      }),
-    };
-
-    const { result, success, message } = await fetch("/compile", opts).then(async (res) => {
-      console.log(res);
-      const result = await res.json().catch(() => null);
-
-      if (!result) {
-        return {
-          success: false,
-          message: res.statusText,
-          result: null,
-        };
+  console.log('[header] tabs', tabs)
+  useEffect(() => {
+      if(selected && selected !== 'home') {
+        setName(obj.name);
       }
+    }, [selected])
 
-      return {
-        success: res.ok,
-        message: res.statusText,
-        result: result,
-      };
-    });
-
-    if (success) {
-      if (result.type === "SUCCESS") {
-        const wasm = result.payload.wasm;
-        downloadBlob(wasm);
-        logger.info("Contract compiled successfully!");
-      } else {
-        const message = result.payload.compile_stderr;
-        logger.error(message);
-      }
-    } else {
-      logger.error(message);
-    }
+  const handleCompile = async () => {
+    const result = await compileFile()
+    if(selected && selected !== 'home')
+          store.send({ type: "addCompiled", path: selected, name });
+    console.log('[-] compilation result', result)
   }
 
   return (
     <div className="bg-card h-[35px] text-sm border-b flex select-none">
-      <div className="border-r">
-        <button className="px-3 h-full" onClick={handleCompile}>
+      {/* <div className="border-r">
+        <button className="px-3 h-full flex items-center gap-2" onClick={handleCompile}>
           <FaPlay className="text-[#32ba89]" size={12} />
+          Compile
         </button>
-      </div>
-      <DeployToSteller />
+      </div> */}
       <div className="flex flex-1 w-0">
         <div ref={containerRef} className="overflow-x-auto flex scroll-smooth">
           {[...tabs].map((tab) => (
