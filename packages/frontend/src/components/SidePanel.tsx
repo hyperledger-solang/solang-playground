@@ -12,7 +12,7 @@ import { useState } from "react";
 
 // import * as imgs from "@/assets/image";
 import CompileIcon from "@/assets/image/compile.svg";
-import DeployAndRunIcon from "@/assets/image/deployAndRun.svg";
+import DeployAndRunIcon from "@/assets/image/DeployAndRun.png";
 import FileManagerIcon from "@/assets/image/fileManager.svg";
 
 function SidePanel() {
@@ -20,7 +20,7 @@ function SidePanel() {
   const { deployWasm } = useDeploy();
   const [contract, setContract] = useState<null | Buffer>(null);
 
-  
+
   const setSidebar = useAppStore((state) => state.setSidebar);
   return (
     <div className="w-[50px] flex flex-col border-r h-full py-3 items-center">
@@ -29,39 +29,39 @@ function SidePanel() {
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">
         <Button
-        tooltip="File Management" 
-        onClick={() => setSidebar(SidebarView.FILE_EXPLORER)} 
-        variant="outline" 
+        tooltip="File Management"
+        onClick={() => setSidebar(SidebarView.FILE_EXPLORER)}
+        variant="outline"
         size="icon">
           <Image
               src={FileManagerIcon}
               alt="File Manager Icon"
-              width={25} 
+              width={25}
               height={35}
             />
         </Button>
         <Button
-        tooltip="Solidity Compiler" 
-            onClick={() => setSidebar(SidebarView.COMPILE)} 
-            variant="outline" 
+        tooltip="Solidity Compiler"
+            onClick={() => setSidebar(SidebarView.COMPILE)}
+            variant="outline"
             size="icon"
         >
             <Image
               src={CompileIcon}
               alt="Compile Icon"
-              width={25} 
-              height={35} 
+              width={25}
+              height={35}
             />
         </Button>
         <Button
-          tooltip="Deploy and Invoke" 
-          onClick={() => setSidebar(SidebarView.DEPLOY)} 
-          variant="outline" 
+          tooltip="Deploy and Invoke"
+          onClick={() => setSidebar(SidebarView.DEPLOY)}
+          variant="outline"
           size="icon">
           <Image
               src={DeployAndRunIcon}
               alt="Deploy and Run Icon"
-              width={25} 
+              width={25}
               height={35}
             />
         </Button>

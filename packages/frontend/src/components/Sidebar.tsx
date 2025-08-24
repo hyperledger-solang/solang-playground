@@ -18,7 +18,7 @@ const DeployExplorer = dynamic(() => import("./DeployExplorer"), { ssr: false })
 function Sidebar() {
   const { sidebar } = useAppStore();
   const { explorer } = store.getSnapshot().context;
-  
+
 
   if (sidebar === SidebarView.SETTINGS) {
     return <Settings />;
@@ -35,7 +35,7 @@ function Sidebar() {
   return (
     <div className="">
       <FileExplorer root={explorer} />
-      
+
     </div>
   );
 }
@@ -55,6 +55,7 @@ function SidebarLayout() {
         </DialogContent>
       </Dialog>
       <div className="w-[300px] border-r bg-card h-full pt-2">
+        <h2 className="text-2xl py-4 uppercase px-3">Solang playground</h2>
         <Sidebar />
       </div>
 
