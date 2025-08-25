@@ -1,5 +1,3 @@
-##########################################################REPLACE OLD DOCKER FELE###########################################################
-# Stage 1: Build environment
 FROM rust:1.83.0 as builder
 
 # Install build dependencies
