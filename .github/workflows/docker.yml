@@ -5,10 +5,12 @@ on:
     branches:
       - develop
       - develop-restore
+      - feat/docker-workflow
   pull_request:
     branches:
       - develop
       - develop-restore
+      - feat/docker-workflow
 
 jobs:
   build_and_test:
@@ -109,4 +111,38 @@ jobs:
 
       - name: Push Docker image to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: docker push ahmadsamehh/fzsolangpg:latest
+
+
+      # Docker Hub Push Steps (Conditional) <<feat/docker-workflow>>
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/docker-workflow'
+        uses: docker/login-action@v3 # Use latest version
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag Docker image for Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/docker-workflow'
+        run: docker tag fzsolangpg ahmadsamehh/fzsolangpg:latest
+
+      - name: Push Docker image to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/docker-workflow'
+        run: docker push ahmadsamehh/fzsolangpg:latest
+
+
+            # Docker Hub Push Steps (Conditional) <<feat/docker-workflow>>
+      - name: Log in to Docker Hub
+        if: github.event_name == 'pull' && github.ref == 'refs/heads/feat/docker-workflow'
+        uses: docker/login-action@v3 # Use latest version
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag Docker image for Docker Hub
+        if: github.event_name == 'pull' && github.ref == 'refs/heads/feat/docker-workflow'
+        run: docker tag fzsolangpg ahmadsamehh/fzsolangpg:latest
+
+      - name: Push Docker image to Docker Hub
+        if: github.event_name == 'pull' && github.ref == 'refs/heads/feat/docker-workflow'
         run: docker push ahmadsamehh/fzsolangpg:latest
