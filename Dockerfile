@@ -1,5 +1,6 @@
 FROM rust:1.86.0 as builder
 
+
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
@@ -59,12 +60,16 @@ RUN . $NVM_DIR/nvm.sh && \
 # Stage 2: Final runtime image
 FROM nestybox/ubuntu-jammy-systemd-docker:latest
 
-# Install runtime dependencies
+
+# Install runtime dependencies + packages required by NodeSource
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     curl \
     dos2unix \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    lsb-release \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
