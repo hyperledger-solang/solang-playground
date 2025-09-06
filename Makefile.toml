@@ -4,7 +4,7 @@ skip_core_tasks = true
 
 [tasks.deps-wasm]
 script = '''
-cargo install -f wasm-bindgen-cli --version 0.2.99
+cargo install wasm-bindgen-cli
 '''
 
 [tasks.deps-npm]
@@ -14,7 +14,7 @@ npm install
 
 [tasks.deps-docker]
 script = '''
-docker pull ghcr.io/hyperledger/solang@sha256:8776a9bd756664f7bf8414710d1a799799bf6fedc1c8f9f0bda17e76749dea7a 
+docker pull ghcr.io/hyperledger-solang/solang:latest
 '''
 
 [tasks.deps]
@@ -111,14 +111,14 @@ dependencies = ["test-backend", "test-app", "test-frontend"]
 
 [tasks.docker-build]
 script = '''
-docker build -t solang-playground .  
+docker build -t solang-playground .
 '''
 
 [tasks.docker-run]
 script = '''
 docker run \
 	  --runtime=sysbox-runc \
-	  --name playground \
+	  --name playground-makee \
 	  --detach \
 	  --volume /tmp:/tmp \
 	  --publish 9000:9000 \

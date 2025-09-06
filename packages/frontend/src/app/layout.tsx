@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import 'tippy.js/dist/tippy.css';
 import "./globals.scss";
 import EditorProvider from "@/context/EditorProvider";
 import { Provider } from "jotai";

@@ -16,6 +16,8 @@
   "ts-node": {
     "compilerOptions": {
       "module": "CommonJS",
+      "target": "es2018",
+      "lib": ["es2018", "dom"]
     },
   },
 }
