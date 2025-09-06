@@ -3,53 +3,101 @@ name: Docker CI
 on:
   push:
     branches:
-      - main
+      - develop
+      - develop-restore
+      - feat/docker-workflow
   pull_request:
     branches:
-      - main
+      - develop
+      - develop-restore
+      - feat/docker-workflow
 
 jobs:
-  build:
+  build_and_test:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v4
 
-      # Needed for cargo-make
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install dependencies inside packages/frontend
+        run: |
+          cd packages/frontend
+          npm install --no-workspaces
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo make
         run: cargo install cargo-make
 
-      - name: get Sysbox
+      - name: Get Sysbox
         run: wget https://downloads.nestybox.com/sysbox/releases/v0.6.1/sysbox-ce_0.6.1-0.linux_amd64.deb
 
       - name: Install Sysbox
-        run: sudo apt-get install ./sysbox-ce_0.6.1-0.linux_amd64.deb
+        run: sudo apt-get update && sudo apt-get install -y ./sysbox-ce_0.6.1-0.linux_amd64.deb
 
       - name: Configure Sysbox runtime
-        run: sudo cp sysbox/daemon.json /etc/docker/daemon.json
+        # Ensure the target directory exists
+        run: sudo mkdir -p /etc/docker && sudo cp sysbox/daemon.json /etc/docker/daemon.json
 
       - name: Restart docker service
         run: sudo systemctl restart docker.service
 
-      - name: Build docker
-        run: cargo make docker-build
+      - name: Build docker image
+        # Use direct docker build for clarity and tagging
+        # Use the Dockerfile with embedded entrypoint
+        run: docker build -t fzsolangpg -f Dockerfile .
 
-      - name: Run docker
-        run: cargo make docker-run
+      - name: Run docker container in detached mode
+        # Publish both port 4444 (backend) and 3000 (frontend)
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend fzsolangpg
 
-      - name: Allow Docker image to boot up
-        uses: juliangruber/sleep-action@v1
+      - name: Download wait-for-it.sh
+        run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
+
+      - name: Wait for backend server (port 4444)
+        run: |
+          echo "Waiting for backend server on localhost:4444..."
+          ./wait-for-it.sh localhost:4444 -t 180 -- echo "Backend server (4444) is up!"
+          if [ $? -ne 0 ]; then
+            echo "Timeout waiting for backend server (4444)."
+            docker logs zsolangpg_backend # Show logs on timeout
+            exit 1
+          fi
+      - name: Wait for frontend server (port 3000)
+        run: |
+          echo "Waiting for frontend server on localhost:3000..."
+          ./wait-for-it.sh localhost:3000 -t 180 -- echo "Frontend server (3000) is up!"
+          if [ $? -ne 0 ]; then
+            echo "Timeout waiting for frontend server (3000)."
+            docker logs zsolangpg_backend # Show logs on timeout
+            exit 1
+          fi
+
+        # Login to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          time: 120s
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Needed to run tests
-      - name: Install npm dependencies
-        run: cargo make deps-npm
+      - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
+        if: github.event_name == 'push'
+        run: |
+          docker tag fzsolangpg ahmadsamehh/fzsolangpg:latest
+          docker push ahmadsamehh/fzsolangpg:latest
 
-      - name: Test
-        run: cargo make test-app
-
-      - name: Show logs
-        run: cargo make docker-log
+      - name: Tag and Push Docker image (pull request event)
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          docker tag fzsolangpg ahmadsamehh/fzsolangpg:pr-$PR_NUMBER
+          docker push ahmadsamehh/fzsolangpg:pr-$PR_NUMBER
