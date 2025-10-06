@@ -13,6 +13,8 @@ import IconButton from "./IconButton";
 import useCompile from "@/hooks/useCompile";
 import useDeploy from "@/hooks/useDeploy";
 import { FileType } from "@/types/explorer";
+import DeployContractModal from "./DeployContractModal";
+import InvokeFunctionModal from "./InvokeFunctionModal";
 import { get } from "lodash";
 
 function TabItem({ path }: { path: string }) {
@@ -109,6 +111,8 @@ function Header() {
   }
 
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [openDeploy, setOpenDeploy] = useState(false);
+  const [openInvoke, setOpenInvoke] = useState(false);
 
   return (
     <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
@@ -133,10 +137,7 @@ function Header() {
 
           {/* Deploy Button */}
           <button
-            onClick={() => {
-              // Add deploy functionality here
-              console.log('Deploy clicked');
-            }}
+            onClick={() => setOpenDeploy(true)}
             className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
           >
             <FaRocket size={14} />
@@ -145,10 +146,7 @@ function Header() {
 
           {/* Invoke Button */}
           <button
-            onClick={() => {
-              // Add invoke functionality here
-              console.log('Invoke clicked');
-            }}
+            onClick={() => setOpenInvoke(true)}
             className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
           >
             <FaPlay size={14} />
@@ -184,6 +182,9 @@ function Header() {
           {isDarkMode ? <FaMoon size={16} /> : <FaSun size={16} />}
         </button>
       </div>
+      {/* Modals */}
+      <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
+      <InvokeFunctionModal isOpen={openInvoke} onClose={() => setOpenInvoke(false)} />
     </div>
   );
 }

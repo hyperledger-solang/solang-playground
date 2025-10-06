@@ -10,7 +10,6 @@ import { FaCog, FaCode, FaCheck, FaHammer } from "react-icons/fa";
 import useCompile from "@/hooks/useCompile";
 import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
-import { extractContractNames } from "./DeployExplorer";
 import { get } from "lodash";
 import { FileType } from "@/types/explorer";
 
@@ -42,20 +41,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
             console.log('[-] compilation result', result);
 
             if (selected && selected !== 'home') {
-                // Get the file content from the store
-                const files = store.getSnapshot().context.files;
-                const fileContent = files[selected] || '';
-
-                console.log('[-] File content for contract extraction:', fileContent);
-
-                // Extract actual contract names from the source code
-                const contractNames = extractContractNames(fileContent);
-                console.log('[-] Extracted contract names:', contractNames);
-
-                const contractName = contractNames.length > 0 ? contractNames[0] : obj.name;
-                console.log('[-] Using contract name:', contractName);
-
-                store.send({ type: "addCompiled", path: selected, name: contractName });
+                // Per product requirement, use source file name for compiled list entries
+                store.send({ type: "addCompiled", path: selected, name: obj.name });
             }
 
             onClose();

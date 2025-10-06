@@ -18,6 +18,7 @@ import { scValToNative } from "@stellar/stellar-sdk";
 import { logger } from "@/state/utils";
 import { toast } from "sonner";
 import { MessageType } from "vscode-languageserver-protocol";
+import FunctionOutputDisplay from "./FunctionOutputDisplay";
 
 interface InvokeFunctionModalProps {
     isOpen: boolean;
@@ -25,12 +26,13 @@ interface InvokeFunctionModalProps {
 }
 
 function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
-    const [selectedContract, setSelectedContract] = useState<string>("");
     const [selectedFunction, setSelectedFunction] = useState<string>("");
     const [functionArgs, setFunctionArgs] = useState<IParam[]>([]);
     const [selectedAccount, setSelectedAccount] = useState<string>("0x1a2b...c3d4");
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
     const [isInvoking, setIsInvoking] = useState(false);
+    const [showOutput, setShowOutput] = useState(false);
+    const [lastOutput, setLastOutput] = useState<{ functionName: string; returnValue: any; logs: string[] } | null>(null);
 
     const contract = useSelector(store, (state) => state.context.contract);
 
@@ -109,16 +111,13 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             logs = logs.filter(Boolean);
             console.log("Invoke Logs", logs);
 
-            // Update contract state with invocation results
-            const returnValue = retVal !== null ? JSON.stringify(retVal) : "No return value";
-            const gasUsed = "21,420"; // This would come from the actual response in a real implementation
-
-            store.send({
-                type: "updateContract",
-                lastReturnValue: returnValue,
-                lastGasUsed: gasUsed,
-                lastInvoked: new Date().toLocaleTimeString()
+            // Store output for display
+            setLastOutput({
+                functionName: selectedFunction,
+                returnValue: retVal,
+                logs: logs
             });
+            setShowOutput(true);
 
             // Add log entries
             store.send({
@@ -138,7 +137,6 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             }
 
             toast.success(`Function '${selectedFunction}' invoked successfully`);
-            onClose();
         } catch (error) {
             console.error('Invocation failed:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -286,6 +284,20 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Function Output Display */}
+            {showOutput && lastOutput && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="max-w-2xl w-full mx-4">
+                        <FunctionOutputDisplay
+                            functionName={lastOutput.functionName}
+                            returnValue={lastOutput.returnValue}
+                            logs={lastOutput.logs}
+                            onClose={() => setShowOutput(false)}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Account Selection Modal */}
             <AccountSelectionModal

@@ -36,9 +36,8 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
             // Find the selected compiled contract
             const selectedCompiledContract = compiled.find(c => c.name === selectedContract);
             if (selectedCompiledContract) {
-                // For now, we'll start with empty constructor args
-                // In a real implementation, this would parse the contract ABI to extract constructor arguments
-                setConstructorArgs([]);
+                // For incrementer contract, default to uint32 type for the constructor parameter
+                setConstructorArgs([{ type: "uint32", value: "10", seq: 0 }]);
             }
         }
     }, [selectedContract, compiled]);
@@ -48,11 +47,11 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
 
         setIsDeploying(true);
         try {
-            // Parse constructor arguments
-            const parsedArgs = constructorArgs.map(arg => ({
-                type: arg.type,
+            // Use plain values (default type 'string'); keep existing deploy hook API
+            const parsedArgs = constructorArgs.map((arg, i) => ({
+                type: arg.type || "string",
                 value: arg.value,
-                seq: 0
+                seq: i
             }));
 
             // The deploy hook will handle compilation from the current file
@@ -77,7 +76,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     };
 
     const addConstructorArg = () => {
-        setConstructorArgs(prev => [...prev, { type: "string", value: "", seq: 0 }]);
+        setConstructorArgs(prev => [...prev, { type: "string", value: "", seq: prev.length }]);
     };
 
     const removeConstructorArg = (index: number) => {
@@ -132,26 +131,30 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
 
                         {/* Constructor Arguments - Only show after contract selection */}
                         {selectedContract && (
-                            <div className="space-y-2">
-                                <Label htmlFor="constructorArgs" className="text-[#cccccc] font-medium">
+                            <div className="space-y-3">
+                                <Label className="text-[#cccccc] font-medium">
                                     Constructor Arguments
                                 </Label>
-                                <Input
-                                    id="constructorArgs"
-                                    value={constructorArgs.length > 0 ? `${constructorArgs[0]?.type || 'string'}: ${constructorArgs[0]?.value || ''}` : ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        if (value.includes(':')) {
-                                            const [type, val] = value.split(':').map(s => s.trim());
-                                            setConstructorArgs([{ type: type || 'string', value: val || '', seq: 0 }]);
-                                        } else {
-                                            setConstructorArgs([{ type: 'string', value: value, seq: 0 }]);
-                                        }
-                                    }}
-                                    placeholder="_greeting (string): Hello, Stellar!"
-                                    className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
-                                />
-                                <p className="text-[#9ca3af] text-xs">Enter constructor arguments if the contract requires them</p>
+                                {constructorArgs.map((arg, index) => (
+                                    <Input
+                                        key={index}
+                                        value={arg.value}
+                                        onChange={(e) => handleConstructorArgChange(index, 'value', e.target.value)}
+                                        placeholder={`Argument ${index + 1} value...`}
+                                        className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
+                                    />
+                                ))}
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" onClick={addConstructorArg} className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]">
+                                        Add Argument
+                                    </Button>
+                                    {constructorArgs.length > 0 && (
+                                        <Button type="button" variant="outline" onClick={() => removeConstructorArg(constructorArgs.length - 1)} className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]">
+                                            Remove Last
+                                        </Button>
+                                    )}
+                                </div>
+                                <p className="text-[#9ca3af] text-xs">Enter plain values; types are inferred as string by default.</p>
                             </div>
                         )}
 
