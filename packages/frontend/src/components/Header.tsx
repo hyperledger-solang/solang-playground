@@ -11,6 +11,7 @@ import { useExplorerItem, useFileContent } from "@/state/hooks";
 import Hide from "./Hide";
 import IconButton from "./IconButton";
 import useCompile from "@/hooks/useCompile";
+import CompilerOptionsModal from "./CompilerOptionsModal";
 import useDeploy from "@/hooks/useDeploy";
 import { FileType } from "@/types/explorer";
 import DeployContractModal from "./DeployContractModal";
@@ -111,6 +112,7 @@ function Header() {
   }
 
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [openCompile, setOpenCompile] = useState(false);
   const [openDeploy, setOpenDeploy] = useState(false);
   const [openInvoke, setOpenInvoke] = useState(false);
 
@@ -128,7 +130,7 @@ function Header() {
         <div className="flex items-center gap-3">
           {/* Compile Button */}
           <button
-            onClick={handleCompile}
+            onClick={() => setOpenCompile(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-sm font-medium transition-colors"
           >
             <FaCode size={14} />
@@ -183,6 +185,7 @@ function Header() {
         </button>
       </div>
       {/* Modals */}
+      <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
       <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
       <InvokeFunctionModal isOpen={openInvoke} onClose={() => setOpenInvoke(false)} />
     </div>

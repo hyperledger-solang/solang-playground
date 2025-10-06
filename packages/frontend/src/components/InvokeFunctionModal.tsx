@@ -16,6 +16,7 @@ import { Network_Url } from "@/constants";
 import { xdr } from "@stellar/stellar-sdk";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { logger } from "@/state/utils";
+import { mapIfValid } from "@/utils";
 import { toast } from "sonner";
 import { MessageType } from "vscode-languageserver-protocol";
 import FunctionOutputDisplay from "./FunctionOutputDisplay";
@@ -60,18 +61,28 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             logger.info("Invoking Contract function...");
             console.log('Invoking function:', selectedFunction, 'with args:', functionArgs);
 
-            // Create request data for the contract service
+            // Prepare args: prefer IDL-declared types; otherwise infer numeric as uint32 → u32
+            const method = contract.methods?.find((m: any) => m.name === selectedFunction) as any;
+            const preparedArgs = functionArgs.map((arg, index) => {
+                const declaredType = (method?.inputs?.[index] as any)?.type as string | undefined;
+                const candidateType = declaredType || (/^-?\d+$/.test(String(arg.value)) ? "uint32" : "string");
+                const [, mappedType] = mapIfValid(String(arg.value ?? ""), candidateType);
+                return {
+                    type: mappedType || candidateType,
+                    value: arg.value,
+                    subType: "",
+                };
+            });
+
+            // Create request data for the contract service - match old working format
             const requestData = {
                 contractId: contract.address,
                 method: selectedFunction,
-                args: functionArgs.map(arg => ({
-                    type: arg.type,
-                    value: arg.value,
-                    subType: "" // Add required subType property
-                })),
+                args: preparedArgs,
             };
 
             console.log("Invoke Data", requestData);
+            logger.info(JSON.stringify(requestData, null, 2));
 
             const contractService = new ContractService(Network_Url.TEST_NET);
             const response = await contractService.invokeContract(requestData);
@@ -111,13 +122,51 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             logs = logs.filter(Boolean);
             console.log("Invoke Logs", logs);
 
-            // Store output for display
+            // Log transaction result like old code
+            if (retVal !== null) {
+                logger.info(`TX Result: ${retVal}`);
+            }
+            logger.info("Transaction successful.");
+            logger.info(`TxId: ${response.hash || 'undefined'}`);
+            logger.info(`Contract Logs:`);
+            if (logs.length > 0) {
+                logs.forEach(log => logger.info(log));
+            }
+
+            // If a mutating function was called, immediately read latest state via a no-arg getter if available
+            let finalReturn = retVal;
+            try {
+                const getter = contract.methods?.find((m: any) => m.name === "get" && (!m.inputs || m.inputs.length === 0));
+                if (getter && selectedFunction !== "get") {
+                    const followUp = await contractService.invokeContract({
+                        contractId: contract.address,
+                        method: "get",
+                        args: [],
+                    });
+                    const { diagnosticEventsXdr: de } = followUp;
+                    for (const eventXdr of Array.from(de || [])) {
+                        try {
+                            const diagnosticEvent = xdr.DiagnosticEvent.fromXDR(eventXdr as any, "base64");
+                            const eventBody = diagnosticEvent.event().body().v0();
+                            const topics = eventBody.topics().map(scValToNative);
+                            const eventData = scValToNative(eventBody.data());
+                            if (topics.length && topics[0] === "fn_return") {
+                                finalReturn = eventData;
+                                break;
+                            }
+                        } catch { }
+                    }
+                }
+            } catch { }
+
+            // Store output for display and close invoke modal
             setLastOutput({
                 functionName: selectedFunction,
-                returnValue: retVal,
+                returnValue: finalReturn,
                 logs: logs
             });
             setShowOutput(true);
+            onClose(); // Close the invoke modal so output modal appears on top
 
             // Add log entries
             store.send({
