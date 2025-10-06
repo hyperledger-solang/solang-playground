@@ -62,28 +62,26 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg bg-[#1A1B3A] border-[#2d2d2d] text-white">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <DialogContent className="max-w-[640px] bg-[#171833] border border-[#27284a] text-white rounded-full shadow-xl px-5 py-4">
+                <DialogHeader className="pb-2">
+                    <DialogTitle className="flex items-center gap-2 text-[18px] font-semibold tracking-tight">
                         <FaCog className="text-[#8b5cf6]" />
                         Compiler Options
                     </DialogTitle>
-                    <DialogDescription className="text-[#9ca3af]">
-                        Configure compiler settings before building your contract
-                    </DialogDescription>
+                    {/* Intentionally minimal — removed extra descriptive text */}
                 </DialogHeader>
 
-                <div className="space-y-6 py-4">
+                <div className="space-y-4">
                     {/* Quick Flags */}
-                    <div className="space-y-4">
-                        <h3 className="text-[#cccccc] font-medium">Quick Flags</h3>
+                    <div className="space-y-2.5">
+                        <h3 className="text-[#cfd1e6] font-medium text-sm">Quick Flags</h3>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-4 gap-2">
                             <button
                                 onClick={() => handleQuickFlagChange('optimize')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.optimize
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.optimize
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --optimize
@@ -91,9 +89,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                             <button
                                 onClick={() => handleQuickFlagChange('emitIr')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.emitIr
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitIr
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --emit-ir
@@ -101,9 +99,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                             <button
                                 onClick={() => handleQuickFlagChange('emitAbi')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.emitAbi
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitAbi
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --emit-abi
@@ -111,9 +109,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                             <button
                                 onClick={() => handleQuickFlagChange('emitDebug')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.emitDebug
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitDebug
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --emit-debug
@@ -121,9 +119,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                             <button
                                 onClick={() => handleQuickFlagChange('noStrengthReduce')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.noStrengthReduce
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.noStrengthReduce
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --no-strength-reduce
@@ -131,9 +129,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                             <button
                                 onClick={() => handleQuickFlagChange('noDeadStorage')}
-                                className={`px-3 py-2 rounded text-sm border transition-colors ${quickFlags.noDeadStorage
+                                className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.noDeadStorage
                                     ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                    : 'bg-[#2d2d2d] border-[#404040] text-[#cccccc] hover:bg-[#3a3a3a]'
+                                    : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                     }`}
                             >
                                 --no-dead-storage
@@ -143,7 +141,7 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                     {/* Custom Flags */}
                     <div className="space-y-2">
-                        <Label htmlFor="customFlags" className="text-[#cccccc] font-medium">
+                        <Label htmlFor="customFlags" className="text-[#cfd1e6] font-medium text-sm">
                             Custom Flags
                         </Label>
                         <textarea
@@ -151,15 +149,15 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                             value={customFlags}
                             onChange={(e) => setCustomFlags(e.target.value)}
                             placeholder="Add custom compiler flags here..."
-                            className="w-full h-20 bg-[#2d2d2d] border border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6] rounded-md px-3 py-2 text-sm resize-none"
+                            className="w-full h-20 bg-[#1e1f3f] border border-[#34355f] text-white placeholder-[#8c8fb0] focus:border-[#8b5cf6] rounded-xl px-3 py-2 text-sm resize-none"
                         />
-                        <p className="text-[#9ca3af] text-xs">Example: --target soroban --optimize-gas</p>
+                        {/* Removed example helper to reduce height */}
                     </div>
 
                     {/* Compiler Info */}
-                    <div className="bg-[#2d2d2d] p-3 rounded-md">
-                        <h4 className="text-[#cccccc] font-medium mb-2">Compiler Information</h4>
-                        <div className="text-[#9ca3af] text-sm space-y-1">
+                    <div className="bg-[#1e1f3f] p-3 rounded-xl border border-[#34355f]">
+                        <h4 className="text-[#cfd1e6] font-medium mb-2 text-sm">Compiler Information</h4>
+                        <div className="text-[#8c8fb0] text-sm space-y-1">
                             <div>Solang Compiler v0.3.3</div>
                             <div>Target: Soroban (Stellar Smart Contracts)</div>
                             <div>Output: WASM bytecode + ABI JSON</div>
@@ -168,18 +166,18 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-[#2d2d2d]">
+                <div className="flex justify-end gap-3 pt-3 border-t border-[#27284a]">
                     <Button
                         variant="outline"
                         onClick={onClose}
-                        className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                        className="border-[#34355f] text-[#cfd1e6] hover:bg-[#22234a]"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleCompile}
                         disabled={isCompiling}
-                        className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
+                        className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-xl px-4"
                     >
                         {isCompiling ? (
                             <div className="flex items-center gap-2">
