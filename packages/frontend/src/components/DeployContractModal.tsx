@@ -12,6 +12,7 @@ import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import AccountSelectionModal from "./AccountSelectionModal";
 import { IParam } from "@/lib/services/types/common";
+import { extractConstructorParamTypes } from "./DeployExplorer";
 
 interface DeployContractModalProps {
     isOpen: boolean;
@@ -36,14 +37,39 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
             // Find the selected compiled contract
             const selectedCompiledContract = compiled.find(c => c.name === selectedContract);
             if (selectedCompiledContract) {
-                // For incrementer contract, default to uint32 type for the constructor parameter
-                setConstructorArgs([{ type: "uint32", value: "10", seq: 0 }]);
+                // Get the file content to extract constructor parameters
+                const filePath = selectedCompiledContract.path;
+                const fileContent = files[filePath] || '';
+
+                // Extract constructor parameter types from the source code
+                const constructorTypes = extractConstructorParamTypes(fileContent);
+
+                if (constructorTypes.length > 0) {
+                    // Create constructor args based on actual constructor parameters
+                    const args = constructorTypes.map((type, index) => ({
+                        type: type,
+                        value: "",
+                        seq: index
+                    }));
+                    setConstructorArgs(args);
+                } else {
+                    // No constructor parameters
+                    setConstructorArgs([]);
+                }
             }
         }
-    }, [selectedContract, compiled]);
+    }, [selectedContract, compiled, files]);
 
     const handleDeploy = async () => {
-        if (!selectedContract) return;
+        if (!selectedContract) {
+            alert('Please select a contract to deploy');
+            return;
+        }
+
+        if (compiled.length === 0) {
+            alert('No compiled contracts available. Please compile a contract first.');
+            return;
+        }
 
         setIsDeploying(true);
         try {
@@ -64,6 +90,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
             }
         } catch (error) {
             console.error('Deployment failed:', error);
+            alert('Deployment failed. Please check the console for details.');
         } finally {
             setIsDeploying(false);
         }
@@ -86,26 +113,22 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-lg bg-[#1A1B3A] border-[#2d2d2d] text-white">
+                <DialogContent className="max-w-lg bg-[#1A1B3A] border-[#2d2d2d] text-white rounded-2xl">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                            <FaRocket className="text-[#8b5cf6]" />
+                        <DialogTitle className="text-xl font-semibold text-white">
                             Deploy Contract
                         </DialogTitle>
-                        <DialogDescription className="text-[#9ca3af]">
-                            Deploy a compiled contract to the network
-                        </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6 py-4">
                         {/* Contract Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="contract" className="text-[#cccccc] font-medium">
-                                Select Contract
+                                Contract
                             </Label>
                             <Select value={selectedContract} onValueChange={setSelectedContract}>
-                                <SelectTrigger className="bg-[#2d2d2d] border-[#404040] text-white focus:border-[#8b5cf6]">
-                                    <SelectValue placeholder="Choose a compiled contract..." />
+                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                    <SelectValue placeholder="Select a contract..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
                                     {compiled.length > 0 ? (
@@ -121,17 +144,11 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                                     )}
                                 </SelectContent>
                             </Select>
-                            {compiled.length === 0 && (
-                                <p className="text-[#9ca3af] text-sm">No compiled contracts available. Please compile a contract first.</p>
-                            )}
-                            {compiled.length > 0 && (
-                                <p className="text-[#9ca3af] text-xs">Select a compiled contract to deploy</p>
-                            )}
                         </div>
 
                         {/* Constructor Arguments - Only show after contract selection */}
-                        {selectedContract && (
-                            <div className="space-y-3">
+                        {selectedContract && constructorArgs.length > 0 && (
+                            <div className="space-y-2">
                                 <Label className="text-[#cccccc] font-medium">
                                     Constructor Arguments
                                 </Label>
@@ -140,51 +157,34 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                                         key={index}
                                         value={arg.value}
                                         onChange={(e) => handleConstructorArgChange(index, 'value', e.target.value)}
-                                        placeholder={`Argument ${index + 1} value...`}
-                                        className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
+                                        placeholder={`${arg.type} value...`}
+                                        className="bg-[#0F0F23] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
                                     />
                                 ))}
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={addConstructorArg} className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]">
-                                        Add Argument
-                                    </Button>
-                                    {constructorArgs.length > 0 && (
-                                        <Button type="button" variant="outline" onClick={() => removeConstructorArg(constructorArgs.length - 1)} className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]">
-                                            Remove Last
-                                        </Button>
-                                    )}
-                                </div>
-                                <p className="text-[#9ca3af] text-xs">Enter plain values; types are inferred as string by default.</p>
                             </div>
                         )}
 
                         {/* Account Selection */}
                         <div className="space-y-2">
-                            <Label className="text-[#cccccc] font-medium">Deploy Account</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={selectedAccount}
-                                    readOnly
-                                    className="bg-[#2d2d2d] border-[#404040] text-white"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setIsAccountModalOpen(true)}
-                                    className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
-                                >
-                                    <FaUserCircle size={14} />
-                                </Button>
-                            </div>
+                            <Label className="text-[#cccccc] font-medium">Account</Label>
+                            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                    <SelectValue placeholder="0x1a2b...c3d4 (Default Account)" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#2d2d2d] border-[#404040]">
+                                    <SelectItem value="0x1a2b...c3d4" className="text-white hover:bg-[#3a3a3a]">
+                                        0x1a2b...c3d4 (Default Account)
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Network Info */}
-                        <div className="bg-[#2d2d2d] p-3 rounded-md">
-                            <h4 className="text-[#cccccc] font-medium mb-2">Deployment Info</h4>
-                            <div className="text-[#9ca3af] text-sm space-y-1">
-                                <div>Network: Futurenet</div>
-                                <div>Target: Soroban</div>
-                                <div>Gas Limit: Auto</div>
+                        <div className="space-y-2">
+                            <Label className="text-[#cccccc] font-medium">Network</Label>
+                            <div className="bg-[#0F0F23] p-3 rounded-md border border-[#404040]">
+                                <div className="text-white font-medium text-lg">Futurenet</div>
+                                <div className="text-[#9ca3af] text-sm">RPC: https://rpc-futurenet.stellar.org</div>
                             </div>
                         </div>
                     </div>
@@ -194,14 +194,14 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                            className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a] rounded-lg"
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleDeploy}
                             disabled={!selectedContract || isDeploying}
-                            className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
+                            className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-lg"
                         >
                             {isDeploying ? (
                                 <div className="flex items-center gap-2">
@@ -209,10 +209,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                                     Deploying...
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-2">
-                                    <FaRocket size={14} />
-                                    Deploy {selectedContract || 'Contract'}
-                                </div>
+                                "Deploy Contract"
                             )}
                         </Button>
                     </div>

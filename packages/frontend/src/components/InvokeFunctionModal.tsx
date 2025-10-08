@@ -238,7 +238,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                 Function
                             </Label>
                             <Select value={selectedFunction} onValueChange={setSelectedFunction}>
-                                <SelectTrigger className="bg-[#2d2d2d] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
                                     <SelectValue placeholder="Choose a function..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
@@ -271,7 +271,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                                 setFunctionArgs(newArgs);
                                             }}
                                             placeholder={`Enter ${arg.type} value...`}
-                                            className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
+                                            className="bg-[#0F0F23] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
                                         />
                                     </div>
                                 ))}
@@ -282,7 +282,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         <div className="space-y-2">
                             <Label className="text-[#cccccc] font-medium">Account</Label>
                             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                                <SelectTrigger className="bg-[#2d2d2d] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
                                     <SelectValue placeholder="0x1a2b...c3d4 (Default Account)" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
@@ -294,7 +294,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         </div>
 
                         {/* Contract Info */}
-                        <div className="bg-[#2d2d2d] p-3 rounded-md">
+                        <div className="bg-[#0F0F23] p-3 rounded-md">
                             <div className="text-[#9ca3af] text-sm space-y-1">
                                 <div>Contract Address: {contract.address ? `${contract.address.slice(0, 8)}...${contract.address.slice(-8)}` : 'Not deployed'}</div>
                                 <div>Network: Futurenet</div>

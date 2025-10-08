@@ -128,7 +128,7 @@ function RightPanel() {
                                 <div className="space-y-2">
                                     <div className="bg-[#2d2d2d] p-3 rounded">
                                         <div className="text-[#cccccc] text-xs font-medium">Contract Address</div>
-                                        <div className="text-[#9ca3af] text-xs mt-1 font-mono">{contract.address}</div>
+                                        <div className="text-[#9ca3af] text-xs mt-1 font-mono break-all">{contract.address ? `${contract.address.slice(0, 8)}...${contract.address.slice(-8)}` : 'Not deployed'}</div>
                                     </div>
                                     {contract.methods?.map((method, index) => (
                                         <div key={index} className="bg-[#2d2d2d] p-3 rounded">
