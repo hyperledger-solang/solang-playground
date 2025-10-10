@@ -14,6 +14,7 @@ import { scValToNative, xdr } from "@stellar/stellar-base";
 import Spinner from "./Spinner";
 import ContractService from "@/lib/services/server/contract";
 import { Network_Url } from "@/constants";
+import { safeStringify } from "@/utils";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -22,7 +23,7 @@ function transformValue(type: string, value: any) {
     case "bool":
       return value ? "true" : "false";
     case "vec":
-      return typeof value === "string" ? value : JSON.stringify(value);
+      return typeof value === "string" ? value : safeStringify(value);
     default:
       return value;
   }
@@ -91,7 +92,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
       logger.info("Invoking Contract function...");
       setBlock(true);
-      logger.info(JSON.stringify(requestData, null, 2));
+      logger.info(safeStringify(requestData, 2));
       toast.loading("Invoking function...", { id: toastId });
       console.log("Invoke Data", requestData);
 
@@ -119,7 +120,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
           if (topics.includes("log")) {
             try {
-              logs.push(JSON.stringify(eventData));
+              logs.push(safeStringify(eventData));
             } catch {
               logs.push(String(eventData));
             }
@@ -180,7 +181,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{marginTop: '2px'}}>
+          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{ marginTop: '2px' }}>
             <span>{method.name}</span>
             {invkRetVal && (<span>{invkRetVal}</span>)}
             <ChevronsLeftRightEllipsis className="ml-auto" />

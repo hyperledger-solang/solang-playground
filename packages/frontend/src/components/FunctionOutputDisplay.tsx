@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { FaCopy, FaCheck, FaTimes } from "react-icons/fa";
+import { safeStringify } from "@/utils";
 
 interface FunctionOutputDisplayProps {
     functionName: string;
@@ -16,7 +17,7 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
 
     const handleCopy = async () => {
         try {
-            const outputText = `Function: ${functionName}\nReturn Value: ${JSON.stringify(returnValue)}\nLogs: ${logs.join('\n')}`;
+            const outputText = `Function: ${functionName}\nReturn Value: ${safeStringify(returnValue)}\nLogs: ${logs.join('\n')}`;
             await navigator.clipboard.writeText(outputText);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
@@ -63,7 +64,7 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
                 <div>
                     <label className="text-[#9ca3af] text-sm font-medium">Return Value</label>
                     <div className="bg-[#2d2d2d] border border-[#404040] rounded-md px-3 py-2 text-white font-mono">
-                        {returnValue !== null ? JSON.stringify(returnValue) : "No return value"}
+                        {returnValue !== null ? safeStringify(returnValue) : "No return value"}
                     </div>
                 </div>
 

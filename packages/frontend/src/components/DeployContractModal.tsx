@@ -121,30 +121,41 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                     </DialogHeader>
 
                     <div className="space-y-6 py-4">
+                        {/* No Compiled Contracts Message */}
+                        {compiled.length === 0 && (
+                            <div className="bg-[#2a2b5a] border border-[#404040] rounded-lg p-4 space-y-2">
+                                <div className="flex items-center gap-2 text-yellow-400">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-semibold">No Compiled Contracts</span>
+                                </div>
+                                <p className="text-[#cccccc] text-sm">
+                                    You need to compile a contract before you can deploy it. Click the <span className="font-semibold text-[#8b5cf6]">Compile</span> button in the header to compile your contract first.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Contract Selection */}
-                        <div className="space-y-2">
-                            <Label htmlFor="contract" className="text-[#cccccc] font-medium">
-                                Contract
-                            </Label>
-                            <Select value={selectedContract} onValueChange={setSelectedContract}>
-                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
-                                    <SelectValue placeholder="Select a contract..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    {compiled.length > 0 ? (
-                                        compiled.map((contract, index) => (
+                        {compiled.length > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="contract" className="text-[#cccccc] font-medium">
+                                    Contract
+                                </Label>
+                                <Select value={selectedContract} onValueChange={setSelectedContract}>
+                                    <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                        <SelectValue placeholder="Select a contract..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#2d2d2d] border-[#404040]">
+                                        {compiled.map((contract, index) => (
                                             <SelectItem key={index} value={contract.name} className="text-white hover:bg-[#3a3a3a]">
                                                 {contract.name}
                                             </SelectItem>
-                                        ))
-                                    ) : (
-                                        <SelectItem value="" disabled className="text-[#9ca3af]">
-                                            No compiled contracts available
-                                        </SelectItem>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         {/* Constructor Arguments - Only show after contract selection */}
                         {selectedContract && constructorArgs.length > 0 && (
@@ -183,8 +194,8 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                         <div className="space-y-2">
                             <Label className="text-[#cccccc] font-medium">Network</Label>
                             <div className="bg-[#0F0F23] p-3 rounded-md border border-[#404040]">
-                                <div className="text-white font-medium text-lg">Futurenet</div>
-                                <div className="text-[#9ca3af] text-sm">RPC: https://rpc-futurenet.stellar.org</div>
+                                <div className="text-white font-medium text-lg">Testnet</div>
+                                <div className="text-[#9ca3af] text-sm">RPC: https://rpc-testnet.stellar.org</div>
                             </div>
                         </div>
                     </div>
@@ -200,8 +211,8 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                         </Button>
                         <Button
                             onClick={handleDeploy}
-                            disabled={!selectedContract || isDeploying}
-                            className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-lg"
+                            disabled={compiled.length === 0 || !selectedContract || isDeploying}
+                            className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isDeploying ? (
                                 <div className="flex items-center gap-2">

@@ -165,7 +165,7 @@ function Header() {
           <span>|</span>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>Network: Futurenet</span>
+            <span>Network: Testnet</span>
           </div>
         </div>
 

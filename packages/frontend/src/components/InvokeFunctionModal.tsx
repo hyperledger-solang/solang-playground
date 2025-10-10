@@ -16,7 +16,7 @@ import { Network_Url } from "@/constants";
 import { xdr } from "@stellar/stellar-sdk";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { logger } from "@/state/utils";
-import { mapIfValid } from "@/utils";
+import { mapIfValid, safeStringify } from "@/utils";
 import { toast } from "sonner";
 import { MessageType } from "vscode-languageserver-protocol";
 import FunctionOutputDisplay from "./FunctionOutputDisplay";
@@ -82,7 +82,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             };
 
             console.log("Invoke Data", requestData);
-            logger.info(JSON.stringify(requestData, null, 2));
+            logger.info(safeStringify(requestData, 2));
 
             const contractService = new ContractService(Network_Url.TEST_NET);
             const response = await contractService.invokeContract(requestData);
@@ -109,7 +109,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
                     if (topics.includes("log")) {
                         try {
-                            logs.push(JSON.stringify(eventData));
+                            logs.push(safeStringify(eventData));
                         } catch {
                             logs.push(String(eventData));
                         }
@@ -297,7 +297,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         <div className="bg-[#0F0F23] p-3 rounded-md">
                             <div className="text-[#9ca3af] text-sm space-y-1">
                                 <div>Contract Address: {contract.address ? `${contract.address.slice(0, 8)}...${contract.address.slice(-8)}` : 'Not deployed'}</div>
-                                <div>Network: Futurenet</div>
+                                <div>Network: Testnet</div>
                                 <div>Gas Limit: Auto-estimate</div>
                                 <div>Functions: {contract.methods?.length || 0}</div>
                             </div>
