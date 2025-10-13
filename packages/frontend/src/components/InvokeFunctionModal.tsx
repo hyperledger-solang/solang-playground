@@ -43,7 +43,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             const method = contract.methods.find((m: any) => m.name === selectedFunction);
             if (method && method.inputs) {
                 setFunctionArgs(method.inputs.map((input: any, index: number) => ({
-                    type: input.type || "string",
+                    type: input.value?.type || "string",
                     value: "",
                     seq: index
                 })));
@@ -64,7 +64,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             // Prepare args: prefer IDL-declared types; otherwise infer numeric as uint32 → u32
             const method = contract.methods?.find((m: any) => m.name === selectedFunction) as any;
             const preparedArgs = functionArgs.map((arg, index) => {
-                const declaredType = (method?.inputs?.[index] as any)?.type as string | undefined;
+                const declaredType = (method?.inputs?.[index] as any)?.value?.type as string | undefined;
                 const candidateType = declaredType || (/^-?\d+$/.test(String(arg.value)) ? "uint32" : "string");
                 const [, mappedType] = mapIfValid(String(arg.value ?? ""), candidateType);
                 return {
@@ -244,7 +244,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
                                     {contract.methods?.map((method: any, index: number) => (
                                         <SelectItem key={index} value={method.name} className="text-white hover:bg-[#3a3a3a]">
-                                            {method.name}({method.inputs?.map((input: any) => input.type).join(', ') || ''})
+                                            {method.name}({method.inputs?.map((input: any) => input.value?.type).join(', ') || ''})
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

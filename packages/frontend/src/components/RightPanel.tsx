@@ -9,10 +9,12 @@ import { store } from "@/state";
 import { FileType } from "@/types/explorer";
 import { get } from "lodash";
 import CompilerOptionsModal from "./CompilerOptionsModal";
+import DeployContractModal from "./DeployContractModal";
 
 function RightPanel() {
     const [activeTab, setActiveTab] = useState<'Build' | 'Artifacts' | 'Invoke'>('Build');
     const [openCompile, setOpenCompile] = useState(false);
+    const [openDeploy, setOpenDeploy] = useState(false);
     const { compileFile } = useCompile();
     const { deployWasm } = useDeploy();
 
@@ -23,9 +25,8 @@ function RightPanel() {
     const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
     const [name, setName] = useState<string>('');
 
-    const handleDeploy = async () => {
-        // Add deploy functionality here
-        console.log('Deploy clicked');
+    const handleDeploy = () => {
+        setOpenDeploy(true);
     };
 
     return (
@@ -150,6 +151,9 @@ function RightPanel() {
 
             {/* Compiler Options Modal */}
             <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
+
+            {/* Deploy Contract Modal */}
+            <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
         </div>
     );
 }
