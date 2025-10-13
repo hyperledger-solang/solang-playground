@@ -13,6 +13,7 @@ import { store } from "@/state";
 import AccountSelectionModal from "./AccountSelectionModal";
 import { IParam } from "@/lib/services/types/common";
 import { extractConstructorParamTypes } from "./DeployExplorer";
+import ErrorModal from "./ErrorModal";
 
 interface DeployContractModalProps {
     isOpen: boolean;
@@ -25,6 +26,8 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     const [selectedAccount, setSelectedAccount] = useState<string>("0x1a2b...c3d4");
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
     const [isDeploying, setIsDeploying] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string>("");
 
     const { deployWasm } = useDeploy();
     const compiled = useSelector(store, (state) => state.context.compiled);
@@ -62,20 +65,23 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
 
     const handleDeploy = async () => {
         if (!selectedContract) {
-            alert('Please select a contract to deploy');
+            setErrorMessage('Please select a contract to deploy');
+            setShowErrorModal(true);
             return;
         }
 
         if (compiled.length === 0) {
-            alert('No compiled contracts available. Please compile a contract first.');
+            setErrorMessage('No compiled contracts available. Please compile a contract first.');
+            setShowErrorModal(true);
             return;
         }
 
         setIsDeploying(true);
+        setErrorMessage("");
         try {
-            // Use plain values (default type 'string'); keep existing deploy hook API
+            // Use the actual constructor parameter types
             const parsedArgs = constructorArgs.map((arg, i) => ({
-                type: arg.type || "string",
+                type: arg.type,
                 value: arg.value,
                 seq: i
             }));
@@ -86,11 +92,17 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
             console.log('Deployment result:', result);
 
             if (result) {
+                setErrorMessage("");
                 onClose();
+            } else {
+                setErrorMessage('Deployment failed. Check the terminal for more details.');
+                setShowErrorModal(true);
             }
         } catch (error) {
             console.error('Deployment failed:', error);
-            alert('Deployment failed. Please check the console for details.');
+            const errMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+            setErrorMessage(`Deployment failed: ${errMsg}`);
+            setShowErrorModal(true);
         } finally {
             setIsDeploying(false);
         }
@@ -232,6 +244,14 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                 isOpen={isAccountModalOpen}
                 onClose={() => setIsAccountModalOpen(false)}
                 onAccountSelect={(account) => setSelectedAccount(account)}
+            />
+
+            {/* Error Modal */}
+            <ErrorModal
+                isOpen={showErrorModal}
+                onClose={() => setShowErrorModal(false)}
+                title="Deployment Error"
+                message={errorMessage}
             />
         </>
     );

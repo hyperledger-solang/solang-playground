@@ -9,7 +9,7 @@ import { FaChevronUp, FaChevronDown, FaGripLines, FaColumns, FaPlus } from "reac
 function Console() {
   const logs = useSelector(store, (state) => state.context.logs);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const element = containerRef.current;

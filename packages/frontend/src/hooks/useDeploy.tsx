@@ -50,9 +50,12 @@ function useDeploy() {
             }
 
         } catch (e) {
-            logger.error('Deployment failed')
-            console.log('deployment error', e)
-            return !1
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            logger.error(`Deployment failed: ${errorMessage}`);
+            console.log('deployment error', e);
+
+            // Throw the error so it can be caught by the caller (DeployContractModal)
+            throw e;
         } finally {
             store.send({ type: "setDialogSpinner", show: false });
         }

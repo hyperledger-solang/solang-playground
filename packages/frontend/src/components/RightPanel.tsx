@@ -8,9 +8,11 @@ import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import { FileType } from "@/types/explorer";
 import { get } from "lodash";
+import CompilerOptionsModal from "./CompilerOptionsModal";
 
 function RightPanel() {
     const [activeTab, setActiveTab] = useState<'Build' | 'Artifacts' | 'Invoke'>('Build');
+    const [openCompile, setOpenCompile] = useState(false);
     const { compileFile } = useCompile();
     const { deployWasm } = useDeploy();
 
@@ -20,14 +22,6 @@ function RightPanel() {
 
     const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
     const [name, setName] = useState<string>('');
-
-    const handleCompile = async () => {
-        const result = await compileFile();
-        if (selected && selected !== 'home') {
-            store.send({ type: "addCompiled", path: selected, name });
-        }
-        console.log('[RightPanel] compilation result', result);
-    };
 
     const handleDeploy = async () => {
         // Add deploy functionality here
@@ -76,7 +70,7 @@ function RightPanel() {
                                 <div className="text-center py-8">
                                     <p className="text-[#9ca3af] text-sm">No artifacts yet — press Compile.</p>
                                     <Button
-                                        onClick={handleCompile}
+                                        onClick={() => setOpenCompile(true)}
                                         className="mt-4 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
                                         size="sm"
                                     >
@@ -153,6 +147,9 @@ function RightPanel() {
                     </div>
                 )}
             </div>
+
+            {/* Compiler Options Modal */}
+            <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
         </div>
     );
 }

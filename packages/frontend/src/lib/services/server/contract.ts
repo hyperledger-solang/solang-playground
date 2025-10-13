@@ -124,8 +124,22 @@ class ContractService {
   // 1. upload wasm
   // 2. deploy wasm-hash
   async deployContract(wasm: Buffer, ctorParamList: IParam[]): Promise<string> {
-    await this.uploadByWasmBuffer(wasm);
+    console.log("Starting deployContract with wasm:", wasm.length, "bytes");
+    console.log("Constructor params:", ctorParamList);
 
+    // Check what's actually in the constructor params
+    if (ctorParamList.length > 0) {
+      console.log("First param details:", {
+        type: ctorParamList[0].type,
+        value: ctorParamList[0].value,
+        seq: ctorParamList[0].seq,
+      });
+    }
+
+    await this.uploadByWasmBuffer(wasm);
+    console.log("WASM uploaded successfully");
+
+    console.log("Starting deployByWasmHash...");
     const addr = await this.deployByWasmHash(ctorParamList);
     return addr;
   }
@@ -163,10 +177,17 @@ class ContractService {
     const preparedTx = await this.rpcServer.prepareTransaction(txn);
     preparedTx.sign(this.keyPair);
 
-    const sim = (await this.rpcServer.simulateTransaction(preparedTx)) as any;
-    const rawReturn = sim.result.retval;
-    const addr = scValToNative(rawReturn);
-    const stResp = await this.rpcServer.sendTransaction(preparedTx);
+    let stResp;
+    let addr;
+    try {
+      const sim = (await this.rpcServer.simulateTransaction(preparedTx)) as any;
+      const rawReturn = sim.result.retval;
+      addr = scValToNative(rawReturn);
+      stResp = await this.rpcServer.sendTransaction(preparedTx);
+    } catch (error) {
+      console.error("Error in doTransaction:", error);
+      throw error;
+    }
 
     this.curTxnHash = stResp.hash;
 

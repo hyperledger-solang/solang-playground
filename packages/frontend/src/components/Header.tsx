@@ -17,6 +17,7 @@ import { FileType } from "@/types/explorer";
 import DeployContractModal from "./DeployContractModal";
 import InvokeFunctionModal from "./InvokeFunctionModal";
 import { get } from "lodash";
+import ErrorModal from "./ErrorModal";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -106,8 +107,19 @@ function Header() {
 
   const handleCompile = async () => {
     const result = await compileFile()
-    if (selected && selected !== 'home')
+
+    // Check if compilation failed
+    if (result.err) {
+      setCompileErrorMessage(result.err);
+      setShowCompileErrorModal(true);
+      return;
+    }
+
+    // Only add to compiled list if compilation was successful
+    if (selected && selected !== 'home' && result.data) {
       store.send({ type: "addCompiled", path: selected, name });
+    }
+
     console.log('[-] compilation result', result)
   }
 
@@ -115,6 +127,8 @@ function Header() {
   const [openCompile, setOpenCompile] = useState(false);
   const [openDeploy, setOpenDeploy] = useState(false);
   const [openInvoke, setOpenInvoke] = useState(false);
+  const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
+  const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
 
   return (
     <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
@@ -188,6 +202,14 @@ function Header() {
       <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
       <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
       <InvokeFunctionModal isOpen={openInvoke} onClose={() => setOpenInvoke(false)} />
+
+      {/* Compilation Error Modal */}
+      <ErrorModal
+        isOpen={showCompileErrorModal}
+        onClose={() => setShowCompileErrorModal(false)}
+        title="Compilation Error"
+        message={compileErrorMessage}
+      />
     </div>
   );
 }
