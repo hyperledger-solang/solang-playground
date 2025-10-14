@@ -6,6 +6,8 @@ Welcome to Solang Playground, a Solidity web editor for that enables editing, co
 
 You can experiment with a [hosted version of Solang Playground](https://solang.io/).
 
+In case you find problems with the original link you can try this [Backup link](https://ssolang.duckdns.org).
+
 ## Building
 
 ```sh
@@ -84,5 +86,5 @@ docker pull salaheldin18/solang-playground-amd64
 
 ## Acknowledgments
 
-- This project started out as a fork of https://github.com/silvanshade/tower-lsp-web-demo. [Darin Morrison](https://github.com/silvanshade) created a demo project where an example tower-lsp language server was compiled to WASM and integrated in a Monaco web editor.
+- This project started out as a fork of <https://github.com/silvanshade/tower-lsp-web-demo>. [Darin Morrison](https://github.com/silvanshade) created a demo project where an example tower-lsp language server was compiled to WASM and integrated in a Monaco web editor.
 - The structure of `solang-playground` is significantly inspired by [`ink-playground`](https://github.com/use-ink/ink-playground). This includes the implementation of running the Solang compiler functionality in a sandboxed environment.
