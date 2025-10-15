@@ -101,11 +101,42 @@ export const events = {
   },
   renameFolder(context: Context, event: { path: string; name: string; basePath: string }) {
     const newPath = createPath(event.basePath, event.name);
-    const folder = get(context, event.path) as FolderType;
+    const oldFolder = get(context, event.path) as FolderType;
+    const folders = [oldFolder];
+
+    // Recursively Change All The HardCoded Paths
+    while (folders.length > 0) {
+      const folder = folders.pop()!;
+
+      for (let key in folder.items) {
+        const item = folder.items[key];
+        const oldPath = item.path;
+        
+        item.path = item.path.replace(event.path, newPath);
+
+        if (item.type === ExpNodeType.FOLDER) {
+          folders.push(item);
+          continue;
+        }
+
+        context.files[item.path] = context.files[oldPath];
+        delete context.files[oldPath];
+
+        if (context.tabs.has(oldPath)) {
+          context.tabs.delete(oldPath);
+          context.tabs.add(item.path);
+        }
+
+        if (context.currentFile === oldPath) {
+          context.currentFile = item.path;
+        }
+      }
+    }
+
     const newFolder = {
       name: event.name,
-      items: folder.items,
-      open: folder.open,
+      items: oldFolder.items,
+      open: oldFolder.open,
       path: newPath,
       type: ExpNodeType.FOLDER,
     } satisfies FolderType;
