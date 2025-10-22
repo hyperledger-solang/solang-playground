@@ -86,9 +86,12 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                 seq: i
             }));
 
-            // The deploy hook will handle compilation from the current file
-            // We'll pass null as the WASM buffer since the existing deploy hook handles compilation
-            const result = await deployWasm(null, parsedArgs);
+            // Find the selected compiled contract to get its path
+            const selectedCompiledContract = compiled.find(c => c.name === selectedContract);
+            const targetPath = selectedCompiledContract?.path;
+
+            // Pass the selected contract path explicitly so deployment respects the dropdown
+            const result = await deployWasm(null, parsedArgs, targetPath);
             console.log('Deployment result:', result);
 
             if (result) {

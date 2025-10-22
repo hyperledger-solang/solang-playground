@@ -14,72 +14,78 @@ function useCompile() {
     const code = useFileContent();
     const selected = useSelector(store, (state) => state.context.currentFile);
 
-    const compileFile = async (): Promise<ICompilationResult> => {
+    const compileFile = async (targetFilePath?: string): Promise<ICompilationResult> => {
         try {
             store.send({ type: "setDialogSpinner", show: true });
 
-            console.log('[tur] [compileFile] code:', code)
-            if (!code) {
-                const err  ="Error: No Source Code Found"
+            // Determine which file's code to compile
+            const state = store.getSnapshot().context;
+            const path = targetFilePath || selected || '';
+            const codeToCompile = path ? state.files[path] : code;
+
+            console.log('[tur] [compileFile] path:', path)
+            if (!codeToCompile) {
+                const err = "Error: No Source Code Found"
                 logger.error(err);
-                return  {
+                return {
                     data: null,
                     err
                 }
             }
-        
+
             logger.info("Compiling contract...");
-        
+
             const opts: RequestInit = {
                 method: "POST",
                 mode: "cors",
                 credentials: "same-origin",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    source: code,
+                    source: codeToCompile,
                 }),
             };
-            
+
             const { result, success, message } = await fetchWithTimeout(`${Network_Url.BACKEND_SERVER}/compile`, opts, async (res) => {
                 const result = await res.json().catch(() => null);
                 console.log('compilation result', result);
                 if (!result) {
-                return {
-                    success: false,
-                    message: res.statusText,
-                    result: null,
-                };
+                    return {
+                        success: false,
+                        message: res.statusText,
+                        result: null,
+                    };
                 }
-        
+
                 return {
-                success: res.ok,
-                message: res.statusText,
-                result: result,
+                    success: res.ok,
+                    message: res.statusText,
+                    result: result,
                 };
             });
-    
+
             let err = "";
-    
+
             if (success) {
                 if (result.type === "SUCCESS") {
-                const wasm = result.payload.wasm;
-                store.send({ type: "updateCurrentWasm", path: selected || '', buff: wasm });
-                logger.info("Contract compiled successfully!");
-                return {
-                    data: wasm,
-                    err: null
-                };
+                    const wasm = result.payload.wasm;
+                    // Persist the compiled WASM against the target path (or current selection)
+                    store.send({ type: "updateCurrentWasm", path: path, buff: wasm });
+                    logger.info("Contract compiled successfully!");
+                    return {
+                        data: wasm,
+                        err: null
+                    };
                 } else {
-                const message = result.payload.compile_stderr;
-                logger.error(message);
-                err = message
+                    const message = result.payload.compile_stderr;
+                    logger.error(message);
+                    err = message
                 }
             } else {
                 logger.error(message);
                 err = message
             }
             console.log('[tur] compilation error:', err)
-                return {
+            return {
                 data: null,
                 err
             }

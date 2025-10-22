@@ -27,6 +27,7 @@ interface InvokeFunctionModalProps {
 }
 
 function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
+    const [selectedContractAddress, setSelectedContractAddress] = useState<string>("");
     const [selectedFunction, setSelectedFunction] = useState<string>("");
     const [functionArgs, setFunctionArgs] = useState<IParam[]>([]);
     const [selectedAccount, setSelectedAccount] = useState<string>("0x1a2b...c3d4");
@@ -37,10 +38,32 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
     const contract = useSelector(store, (state) => state.context.contract);
 
+    // Get deployed contract addresses
+    const deployedAddresses = Object.keys(contract.deployed || {});
+
+    // Auto-select first contract when modal opens
+    useEffect(() => {
+        if (isOpen && deployedAddresses.length > 0 && !selectedContractAddress) {
+            setSelectedContractAddress(deployedAddresses[0]);
+        }
+    }, [isOpen, deployedAddresses.length]);
+
+    // Get methods and fileName for selected contract
+    const selectedContractInfo = selectedContractAddress && contract.deployed[selectedContractAddress]
+        ? contract.deployed[selectedContractAddress]
+        : null;
+    const selectedContractMethods = selectedContractInfo?.methods || [];
+
+    // Reset function selection when contract changes
+    useEffect(() => {
+        setSelectedFunction("");
+        setFunctionArgs([]);
+    }, [selectedContractAddress]);
+
     // Update function args when function changes
     useEffect(() => {
-        if (selectedFunction && contract.methods) {
-            const method = contract.methods.find((m: any) => m.name === selectedFunction);
+        if (selectedFunction && selectedContractMethods) {
+            const method = selectedContractMethods.find((m: any) => m.name === selectedFunction);
             if (method && method.inputs) {
                 setFunctionArgs(method.inputs.map((input: any, index: number) => ({
                     type: input.value?.type || "string",
@@ -51,10 +74,10 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                 setFunctionArgs([]);
             }
         }
-    }, [selectedFunction, contract.methods]);
+    }, [selectedFunction, selectedContractMethods]);
 
     const handleInvoke = async () => {
-        if (!selectedFunction || !contract.address) return;
+        if (!selectedFunction || !selectedContractAddress) return;
 
         setIsInvoking(true);
         try {
@@ -62,7 +85,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             console.log('Invoking function:', selectedFunction, 'with args:', functionArgs);
 
             // Prepare args: prefer IDL-declared types; otherwise infer numeric as uint32 → u32
-            const method = contract.methods?.find((m: any) => m.name === selectedFunction) as any;
+            const method = selectedContractMethods?.find((m: any) => m.name === selectedFunction) as any;
             const preparedArgs = functionArgs.map((arg, index) => {
                 const declaredType = (method?.inputs?.[index] as any)?.value?.type as string | undefined;
                 const candidateType = declaredType || (/^-?\d+$/.test(String(arg.value)) ? "uint32" : "string");
@@ -76,7 +99,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
             // Create request data for the contract service - match old working format
             const requestData = {
-                contractId: contract.address,
+                contractId: selectedContractAddress,
                 method: selectedFunction,
                 args: preparedArgs,
             };
@@ -136,10 +159,10 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             // If a mutating function was called, immediately read latest state via a no-arg getter if available
             let finalReturn = retVal;
             try {
-                const getter = contract.methods?.find((m: any) => m.name === "get" && (!m.inputs || m.inputs.length === 0));
+                const getter = selectedContractMethods?.find((m: any) => m.name === "get" && (!m.inputs || m.inputs.length === 0));
                 if (getter && selectedFunction !== "get") {
                     const followUp = await contractService.invokeContract({
-                        contractId: contract.address,
+                        contractId: selectedContractAddress,
                         method: "get",
                         args: [],
                     });
@@ -219,8 +242,8 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-lg bg-[#1A1B3A] border-[#2d2d2d] text-white">
-                    <DialogHeader>
+                <DialogContent className="max-w-lg max-h-[90vh] bg-[#1A1B3A] border-[#2d2d2d] text-white flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                         <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
                             <FaPlay className="text-[#8b5cf6]" />
                             Invoke Function
@@ -230,29 +253,56 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-6 py-4">
+                    <div className="space-y-6 py-4 overflow-y-auto flex-1">
 
-                        {/* Function Selection */}
+                        {/* Contract Selection */}
                         <div className="space-y-2">
-                            <Label htmlFor="function" className="text-[#cccccc] font-medium">
-                                Function
+                            <Label htmlFor="contract" className="text-[#cccccc] font-medium">
+                                Contract
                             </Label>
-                            <Select value={selectedFunction} onValueChange={setSelectedFunction}>
+                            <Select value={selectedContractAddress} onValueChange={setSelectedContractAddress}>
                                 <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
-                                    <SelectValue placeholder="Choose a function..." />
+                                    <SelectValue placeholder="Choose a contract..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    {contract.methods?.map((method: any, index: number) => (
-                                        <SelectItem key={index} value={method.name} className="text-white hover:bg-[#3a3a3a]">
-                                            {method.name}({method.inputs?.map((input: any) => input.value?.type).join(', ') || ''})
-                                        </SelectItem>
-                                    ))}
+                                    {deployedAddresses.map((address) => {
+                                        const contractInfo = contract.deployed[address];
+                                        return (
+                                            <SelectItem key={address} value={address} className="text-white hover:bg-[#3a3a3a]">
+                                                {contractInfo?.fileName || 'Unknown'} ({`${address.slice(0, 8)}...${address.slice(-8)}`})
+                                            </SelectItem>
+                                        );
+                                    })}
                                 </SelectContent>
                             </Select>
-                            {(!contract.address || !contract.methods?.length) && (
-                                <p className="text-[#9ca3af] text-sm">No deployed contract or functions available.</p>
+                            {deployedAddresses.length === 0 && (
+                                <p className="text-[#9ca3af] text-sm">No deployed contracts available.</p>
                             )}
                         </div>
+
+                        {/* Function Selection */}
+                        {selectedContractAddress && (
+                            <div className="space-y-2">
+                                <Label htmlFor="function" className="text-[#cccccc] font-medium">
+                                    Function
+                                </Label>
+                                <Select value={selectedFunction} onValueChange={setSelectedFunction}>
+                                    <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                        <SelectValue placeholder="Choose a function..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#2d2d2d] border-[#404040]">
+                                        {selectedContractMethods?.map((method: any, index: number) => (
+                                            <SelectItem key={index} value={method.name} className="text-white hover:bg-[#3a3a3a]">
+                                                {method.name}({method.inputs?.map((input: any) => input.value?.type).join(', ') || ''})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedContractMethods.length === 0 && (
+                                    <p className="text-[#9ca3af] text-sm">No functions available for this contract.</p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Function Arguments */}
                         {functionArgs.length > 0 && (
@@ -294,18 +344,23 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         </div>
 
                         {/* Contract Info */}
-                        <div className="bg-[#0F0F23] p-3 rounded-md">
-                            <div className="text-[#9ca3af] text-sm space-y-1">
-                                <div>Contract Address: {contract.address ? `${contract.address.slice(0, 8)}...${contract.address.slice(-8)}` : 'Not deployed'}</div>
-                                <div>Network: Testnet</div>
-                                <div>Gas Limit: Auto-estimate</div>
-                                <div>Functions: {contract.methods?.length || 0}</div>
+                        {selectedContractAddress && selectedContractInfo && (
+                            <div className="bg-[#0F0F23] p-3 rounded-md">
+                                <div className="text-[#9ca3af] text-sm space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[#cccccc] font-medium">{selectedContractInfo.fileName}</span>
+                                    </div>
+                                    <div>Contract Address: {selectedContractAddress ? `${selectedContractAddress.slice(0, 8)}...${selectedContractAddress.slice(-8)}` : 'Not deployed'}</div>
+                                    <div>Network: Testnet</div>
+                                    <div>Gas Limit: Auto-estimate</div>
+                                    <div>Functions: {selectedContractMethods?.length || 0}</div>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-[#2d2d2d]">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-[#2d2d2d] flex-shrink-0">
                         <Button
                             variant="outline"
                             onClick={onClose}
@@ -315,7 +370,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         </Button>
                         <Button
                             onClick={handleInvoke}
-                            disabled={!selectedFunction || !contract.address || isInvoking}
+                            disabled={!selectedFunction || !selectedContractAddress || isInvoking}
                             className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
                         >
                             {isInvoking ? (
