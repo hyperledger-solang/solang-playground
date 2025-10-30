@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { FaTimes } from "react-icons/fa";
 
@@ -14,7 +14,7 @@ interface ErrorModalProps {
 function ErrorModal({ isOpen, onClose, title, message }: ErrorModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-md bg-[#1A1B3A] border-red-500/50 text-white rounded-2xl">
+            <DialogContent className="max-w-xl bg-[#1A1B3A] border-red-500/50 text-white rounded-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-red-400">
                         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -22,13 +22,16 @@ function ErrorModal({ isOpen, onClose, title, message }: ErrorModalProps) {
                         </svg>
                         {title}
                     </DialogTitle>
+                    <DialogDescription className="text-[#cccccc] text-sm">
+                        Review the details below. Long messages will scroll.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4">
-                    <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
-                        <p className="text-red-200 text-sm leading-relaxed">
+                    <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 max-h-80 overflow-auto">
+                        <pre className="text-red-200 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono">
                             {message}
-                        </p>
+                        </pre>
                     </div>
                 </div>
 
