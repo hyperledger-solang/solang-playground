@@ -1,20 +1,20 @@
-export const defaultCode = `contract flipper {
-  uint64 private value;
+export const defaultCode = `pragma solidity 0;
 
-  /// Constructor that initializes the \`uint64\` value to the given \`init_value\`.
-  constructor(uint64 initvalue) {
+contract incrementer {
+  uint32 private value;
+
+  /// Constructor that initializes the int32 value to the given init_value.
+  constructor(uint32 initvalue) {
     value = initvalue;
   }
 
-  /// A message that can be called on instantiated contracts.
-  /// This one flips the value of the stored \`uint64\` from \`true\`
-  /// to \`false\` and vice versa.
-  function flip() public {
-    value = !value;
+  /// This increments the value by by.
+  function inc(uint32 by) public {
+    value += by;
   }
 
-  /// Simply returns the current value of our \`uint64\`.
-  function get() public view returns (uint64) {
+  /// Simply returns the current value of our uint32.
+  function get() public view returns (uint32) {
     return value;
   }
 }
