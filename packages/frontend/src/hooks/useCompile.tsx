@@ -45,7 +45,7 @@ function useCompile() {
                 }),
             };
 
-            const { result, success, message } = await fetchWithTimeout(`${Network_Url.BACKEND_SERVER}/compile`, opts, async (res) => {
+            const { result, success, message } = await fetchWithTimeout(`/compile`, opts, async (res) => {
                 const result = await res.json().catch(() => null);
                 console.log('compilation result', result);
                 if (!result) {
