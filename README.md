@@ -4,7 +4,7 @@ Welcome to Solang Playground, a Solidity web editor for that enables editing, co
 
 ## Demo
 
-You can experiment with a [hosted version of Solang Playground](https://hypersolang.ddnsfree.com/).
+You can experiment with a [hosted version of Solang Playground](https://solang.io/).
 
 ## Building
 

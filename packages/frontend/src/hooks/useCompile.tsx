@@ -14,12 +14,17 @@ function useCompile() {
     const code = useFileContent();
     const selected = useSelector(store, (state) => state.context.currentFile);
 
-    const compileFile = async (): Promise<ICompilationResult> => {
+    const compileFile = async (targetFilePath?: string): Promise<ICompilationResult> => {
         try {
             store.send({ type: "setDialogSpinner", show: true });
 
-            console.log('[tur] [compileFile] code:', code)
-            if (!code) {
+            // Determine which file's code to compile
+            const state = store.getSnapshot().context;
+            const path = targetFilePath || selected || '';
+            const codeToCompile = path ? state.files[path] : code;
+
+            console.log('[tur] [compileFile] path:', path)
+            if (!codeToCompile) {
                 const err = "Error: No Source Code Found"
                 logger.error(err);
                 return {
@@ -36,11 +41,11 @@ function useCompile() {
                 credentials: "same-origin",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    source: code,
+                    source: codeToCompile,
                 }),
             };
 
-            const { result, success, message } = await fetchWithTimeout("compile", opts, async (res) => {
+            const { result, success, message } = await fetchWithTimeout(`${Network_Url.BACKEND_SERVER}/compile`, opts, async (res) => {
                 const result = await res.json().catch(() => null);
                 console.log('compilation result', result);
                 if (!result) {
@@ -63,7 +68,8 @@ function useCompile() {
             if (success) {
                 if (result.type === "SUCCESS") {
                     const wasm = result.payload.wasm;
-                    store.send({ type: "updateCurrentWasm", path: selected || '', buff: wasm });
+                    // Persist the compiled WASM against the target path (or current selection)
+                    store.send({ type: "updateCurrentWasm", path: path, buff: wasm });
                     logger.info("Contract compiled successfully!");
                     return {
                         data: wasm,
