@@ -18,6 +18,10 @@ docker pull ghcr.io/hyperledger-solang/solang:latest
 '''
 
 [tasks.deps]
+description = "Install project dependencies"
+script = [
+    "cargo fetch"
+]
 dependencies = ["deps-wasm", "deps-npm", "deps-docker"]
 
 [tasks.build-server]

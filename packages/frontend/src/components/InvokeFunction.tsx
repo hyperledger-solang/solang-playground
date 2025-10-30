@@ -105,6 +105,9 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       let retVal: any = null;
       let logs: string[] = [];
 
+      // Track error events to write to terminal
+      let errorMessages: string[] = [];
+
       for (const eventXdr of Array.from(diagnosticEventsXdr || [])) {
         try {
           const diagnosticEvent = xdr.DiagnosticEvent.fromXDR(eventXdr as any, "base64");
@@ -125,9 +128,23 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
               logs.push(String(eventData));
             }
           }
+
+          // Check for error events
+          if (topics.includes("error")) {
+            const errorMsg = typeof eventData === 'string' ? eventData : safeStringify(eventData);
+            errorMessages.push(errorMsg);
+            logger.error(`Contract Error: ${errorMsg}`);
+            console.log("Error Event", topics, eventData);
+          }
         } catch (e) {
           logger.error(`Error parsing diagnostic event: ${String(e)}`);
         }
+      }
+
+      // Write errors to terminal if any
+      if (errorMessages.length > 0) {
+        const errorDetails = `${errorMessages.join('\n')}\nDiagnostic Events:\n${safeStringify(diagnosticEventsXdr, 2)}`;
+        logger.error(errorDetails);
       }
 
       logs = logs.filter(Boolean);
