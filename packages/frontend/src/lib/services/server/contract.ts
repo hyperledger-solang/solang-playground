@@ -146,9 +146,7 @@ class ContractService {
     let encodedCtorArgs: xdr.ScVal[] = [];
     try {
       const idl: IDL = await generateIdl(new Uint8Array(wasm));
-      const ctor = Array.isArray(idl)
-        ? idl.find((i: FunctionSpec) => i.name.includes("constructor"))
-        : undefined;
+      const ctor = Array.isArray(idl) ? idl.find((i: FunctionSpec) => i.name.includes("constructor")) : undefined;
 
       if (ctor && Array.isArray(ctor.inputs) && ctor.inputs.length > 0) {
         encodedCtorArgs = ctor.inputs.map((input, idx) => {
@@ -172,6 +170,11 @@ class ContractService {
 
           const userProvided = ctorParamList[idx]?.value ?? "";
           const [val, mapped] = mapIfValid(String(userProvided), expectedType);
+          if (val === null || mapped === "") {
+            throw new Error(
+              `Invalid constructor arg at index ${idx}. Expected ${expectedType}, received "${String(userProvided)}"`,
+            );
+          }
           return nativeToScVal(val, { type: mapped });
         });
       } else {
