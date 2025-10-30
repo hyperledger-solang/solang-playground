@@ -3,14 +3,12 @@ name: Docker CI
 on:
   push:
     branches:
-      - develop
-      - develop-restore
-      - feat/docker-workflow
+      - testedits
+
   pull_request:
     branches:
-      - develop
-      - develop-restore
-      - feat/docker-workflow
+      - testedits
+
 
 jobs:
   build_and_test:
@@ -54,11 +52,11 @@ jobs:
       - name: Build docker image
         # Use direct docker build for clarity and tagging
         # Use the Dockerfile with embedded entrypoint
-        run: docker build -t fzsolangpg -f Dockerfile .
+        run: docker build -t solang-pg -f Dockerfile .
 
       - name: Run docker container in detached mode
         # Publish both port 4444 (backend) and 3000 (frontend)
-        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend fzsolangpg
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend solang-pg
 
       - name: Download wait-for-it.sh
         run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
@@ -92,12 +90,12 @@ jobs:
       - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
         if: github.event_name == 'push'
         run: |
-          docker tag fzsolangpg ahmadsamehh/fzsolangpg:latest
-          docker push ahmadsamehh/fzsolangpg:latest
+          docker tag solang-pg ahmadsamehh/solang-pg:latest
+          docker push ahmadsamehh/solang-pg:latest
 
       - name: Tag and Push Docker image (pull request event)
         if: github.event_name == 'pull_request'
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          docker tag fzsolangpg ahmadsamehh/fzsolangpg:pr-$PR_NUMBER
-          docker push ahmadsamehh/fzsolangpg:pr-$PR_NUMBER
+          docker tag solang-pg ahmadsamehh/solang-pg:pr-$PR_NUMBER
+          docker push ahmadsamehh/solang-pg:pr-$PR_NUMBER
