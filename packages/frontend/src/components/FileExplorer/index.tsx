@@ -3,9 +3,8 @@ import RenderNode from "./components/RenderNode";
 
 function FileExplorer({ root }: { root: FolderType }) {
   return (
-    <div className=" ">
-      <h2 className="text-base uppercase px-3">File Explorer</h2>
-      <div className="mt-10 relative z-10 px-3 overflow-x-clip">
+    <div className="text-[#cccccc]">
+      <div className="relative z-10 overflow-x-clip px-3 py-4">
         <RenderNode node={root} basePath="" />
       </div>
     </div>

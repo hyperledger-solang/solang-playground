@@ -32,40 +32,47 @@ export function extractConstructorParamTypes(contractCode: string): string[] {
 }
 
 function DeployExplorer() {
-  const {compileFile} = useCompile();
+  const { compileFile } = useCompile();
   const code = useFileContent();
-  
-  const {deployWasm} = useDeploy();
+
+  const { deployWasm } = useDeploy();
   const currFileTabSelected = useSelector(store, (state) => state.context.currentFile);
   const compiled = useSelector(store, (state) => state.context.compiled);
   const currWasm = useSelector(store, (state) => state.context.currentWasm);
   const deployed = useSelector(store, (state) => state.context.contract?.deployed) || {};
+  const files = useSelector(store, (state) => state.context.files);
   const [keys, setKeys] = useState<string[]>([]);
   const [paramTypesList, setParamTypesList] = useState<string[]>([]);
   const [paramList, setParamList] = useState<IParam[]>([]);
   const [copied, setCopied] = useState<boolean>(!1);
   const [selected, setSelected] = useState<string>(compiled.length ? compiled[0].path : '');
 
+  // Get the content of the selected file (not the current tab)
+  const selectedFileContent = selected ? files[selected] || '' : '';
+
   useEffect(() => {
     console.log('[tur] current file tab:', currFileTabSelected)
-    if(currFileTabSelected) setSelected(currFileTabSelected || '')
-    let paramTypes = extractConstructorParamTypes(code);
-    setParamTypesList(paramTypes)
-    console.log('[currFileTabSelected] paramTypes:', paramTypes);
+    if (currFileTabSelected) setSelected(currFileTabSelected || '')
   }, [currFileTabSelected])
-  
+
   useEffect(() => {
     console.log('[tur] compiled updated:', compiled)
-    let paramTypes = extractConstructorParamTypes(code);
+    // Extract parameters from the selected file content, not current tab
+    let paramTypes = extractConstructorParamTypes(selectedFileContent);
     setParamTypesList(paramTypes)
-    console.log('[compiled] paramTypes:', paramTypes);
-  }, [compiled])
+    console.log('[selected file] paramTypes:', paramTypes);
+  }, [compiled, selectedFileContent])
 
   const handleSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const v = event.target.value;
     console.log("[tur] Custom selected:", v);
     setSelected(v);
-    store.send({ type: "setCurrentPath", path: v });
+    // Don't change the current tab, just update the selected contract for deployment
+    // Extract parameters from the newly selected file
+    const selectedContent = files[v] || '';
+    let paramTypes = extractConstructorParamTypes(selectedContent);
+    setParamTypesList(paramTypes);
+    console.log('[selected file] paramTypes:', paramTypes);
   };
 
   useEffect(() => {
@@ -93,19 +100,16 @@ function DeployExplorer() {
   }
 
   const handleDeploy = async () => {
-    if(paramList.length !== paramTypesList.length) {
+    if (paramList.length !== paramTypesList.length) {
       toast.error(`Error: fill all constructor parameters!`);
       return
     }
-    let contract: Buffer | null = null;
-    console.log('[tur] selected path', selected)
-    console.log('[tur] curr wasm path', currWasm.path)
-    if(selected.indexOf(currWasm.path) == -1) {
-      console.log('[tur] so compiling..')
-      const res = await compileFile();
-      contract = res.data;
-    }
-    const result = await deployWasm(contract, paramList)
+
+    console.log('[tur] deploying selected contract:', selected)
+    console.log('[tur] current tab:', currFileTabSelected)
+
+    // Pass the selected file path directly to deployWasm
+    const result = await deployWasm(null, paramList, selected)
     console.log('[tur] deployed?', result)
   }
 
@@ -122,7 +126,7 @@ function DeployExplorer() {
 
   const handleRemoveDeployed = async (k: string) => {
     console.log('[tur] keys:', keys)
-    store.send({ type: 'deleteDeployed', addr: k})
+    store.send({ type: 'deleteDeployed', addr: k })
   }
 
   useEffect(() => {
@@ -130,35 +134,35 @@ function DeployExplorer() {
   }, [paramList])
 
   const handleParam = (v: string, i: number, t: string) => {
-  console.log("Changed value:", v, i, t);
+    console.log("Changed value:", v, i, t);
 
-  // clone paramList to avoid mutating state directly
-  const params = [...paramList];
+    // clone paramList to avoid mutating state directly
+    const params = [...paramList];
 
-  if (!v) {
-    // remove param at index if empty
-    params.splice(i, 1);
-  } else {
-    // validate and map value
-    const [mappedValue, mappedType] = mapIfValid(v, t);
-    console.log("mappedValue", mappedValue, "mappedType", mappedType);
-    if (mappedValue === null || mappedType === "") {
-      console.warn(`Invalid value '${v}' for type '${t}'`);
-      return;
-    }
-
-    const paramEntry = { seq: i, value: mappedValue, type: mappedType };
-
-    if (params.length <= i) {
-      params.push(paramEntry);
+    if (!v) {
+      // remove param at index if empty
+      params.splice(i, 1);
     } else {
-      params[i] = paramEntry;
-    }
-  }
+      // validate and map value
+      const [mappedValue, mappedType] = mapIfValid(v, t);
+      console.log("mappedValue", mappedValue, "mappedType", mappedType);
+      if (mappedValue === null || mappedType === "") {
+        console.warn(`Invalid value '${v}' for type '${t}'`);
+        return;
+      }
 
-  setParamList(params);
-  console.log("params", params, "paramList", paramList);
-};
+      const paramEntry = { seq: i, value: mappedValue, type: mappedType };
+
+      if (params.length <= i) {
+        params.push(paramEntry);
+      } else {
+        params[i] = paramEntry;
+      }
+    }
+
+    setParamList(params);
+    console.log("params", params, "paramList", paramList);
+  };
 
 
   const handleBlurOrEnter = (
@@ -166,16 +170,16 @@ function DeployExplorer() {
     i: number,
     t: string
   ) => {
-  if ("key" in e) {
-    // KeyDown event
-    if (e.key === "Enter") {
+    if ("key" in e) {
+      // KeyDown event
+      if (e.key === "Enter") {
+        handleParam(e.currentTarget.value, i, t);
+      }
+    } else {
+      // Blur event
       handleParam(e.currentTarget.value, i, t);
     }
-  } else {
-    // Blur event
-    handleParam(e.currentTarget.value, i, t);
-  }
-};
+  };
 
   return (
     <div className=" ">
@@ -184,8 +188,8 @@ function DeployExplorer() {
       </div>
       <div className="mt-10 relative z-10 px-3 overflow-x-clip">
         <div>
-          <div style={{marginBottom: '1rem'}}>
-            <p style={{marginBottom: '1rem'}}>CONTRACTS</p>
+          <div style={{ marginBottom: '1rem' }}>
+            <p style={{ marginBottom: '1rem' }}>CONTRACTS</p>
             <select
               disabled={compiled.length == 0}
               value={selected}
@@ -201,24 +205,24 @@ function DeployExplorer() {
                 <option key={`${c.path}__${i}`} value={c.path} style={{ backgroundColor: 'hsl(var(--card))' }}>{c.name}</option>
               ))}
             </select>
-            
+
           </div>
         </div>
         {
           paramTypesList.length > 0 &&
           <div className="relative inline-block w-48 mb-2 mt-2">
             <div className="flex flex-col gap-2">
-                {
-                  paramTypesList.map((t, i) => (
-                    <Input 
-                      key={`${t}__${i}`} 
-                      placeholder={t} 
-                      className="h-8 s-full rounded-sm"
-                      onBlur={e => handleBlurOrEnter(e, i, t)} 
-                      onKeyDown={e => handleBlurOrEnter(e, i, t)} 
-                    />
-                  ))
-                }
+              {
+                paramTypesList.map((t, i) => (
+                  <Input
+                    key={`${t}__${i}`}
+                    placeholder={t}
+                    className="h-8 s-full rounded-sm"
+                    onBlur={e => handleBlurOrEnter(e, i, t)}
+                    onKeyDown={e => handleBlurOrEnter(e, i, t)}
+                  />
+                ))
+              }
             </div>
           </div>
         }
@@ -234,32 +238,32 @@ function DeployExplorer() {
             </Button>
           </div>
         </div>
-        {keys.length ? <p style={{marginTop: '1rem', marginBottom: '1rem'}}>DEPLOYED</p> : <></>}
+        {keys.length ? <p style={{ marginTop: '1rem', marginBottom: '1rem' }}>DEPLOYED</p> : <></>}
         <div className="flex flex-col gap-2">
           {
             keys.map((k, i) => (
-            <div key={`main_${k}__${i}`}>
-              <p
-                key={`sub_0_${k}__${(i+1) * 2}`}
-                style={{display: 'flex', justifyContent: 'space-between'}}
-              >
-                <span style={{cursor: 'pointer'}} onClick={e => toggleCollapsed(e, k)}>
-                  {`${k.substring(0, 5)}..${k.substring(50)}`}
-                </span>
-                <Copy style={{cursor: 'pointer'}} size={16} onClick={e => handleCopy(k)} />
-                {/* {copied && <span style={{ color: "green" }}>Copied!</span>} */}
-                <ArchiveX style={{cursor: 'pointer'}} size={16} onClick={e => handleRemoveDeployed(k)}/>                
-              </p>
-              <div key={`sub_1_${k}__${(i+1) * 3}`} style={{display: 'none'}}>
-                { 
-                  deployed[k] && deployed[k].map((item, i) => (
-                    <InvokeFunction contractAddress={k} key={`${item.name}__${i}__${item.type}`} method={item} />
-                  ))
-                }
+              <div key={`main_${k}__${i}`}>
+                <p
+                  key={`sub_0_${k}__${(i + 1) * 2}`}
+                  style={{ display: 'flex', justifyContent: 'space-between' }}
+                >
+                  <span style={{ cursor: 'pointer' }} onClick={e => toggleCollapsed(e, k)}>
+                    {`${k.substring(0, 5)}..${k.substring(50)}`}
+                  </span>
+                  <Copy style={{ cursor: 'pointer' }} size={16} onClick={e => handleCopy(k)} />
+                  {/* {copied && <span style={{ color: "green" }}>Copied!</span>} */}
+                  <ArchiveX style={{ cursor: 'pointer' }} size={16} onClick={e => handleRemoveDeployed(k)} />
+                </p>
+                <div key={`sub_1_${k}__${(i + 1) * 3}`} style={{ display: 'none' }}>
+                  {
+                    deployed[k] && deployed[k].methods && deployed[k].methods.map((item, i) => (
+                      <InvokeFunction contractAddress={k} key={`${item.name}__${i}__${item.type}`} method={item} />
+                    ))
+                  }
+                </div>
               </div>
-            </div>
             )
-          )
+            )
           }
         </div>
 

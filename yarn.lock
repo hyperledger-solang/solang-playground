@@ -3809,7 +3809,7 @@ fresh@0.5.2:
   resolved "https://registry.npmjs.org/fresh/-/fresh-0.5.2.tgz"
   integrity sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==
 
-"frontend@file:/home/spectre/Documents/WWW/solang-playground/packages/frontend":
+"frontend@file:/home/spectre/Documents/donny/solang/packages/frontend":
   version "0.1.0"
   resolved "file:packages/frontend"
   dependencies:
@@ -5485,7 +5485,7 @@ monaco-languageclient@^1.0.1:
     vscode-languageserver-textdocument "1.0.5"
     vscode-uri "3.0.3"
 
-"monaco-lsp-streams@file:/home/spectre/Documents/WWW/solang-playground/packages/app":
+"monaco-lsp-streams@file:/home/spectre/Documents/donny/solang/packages/app":
   version "0.0.0"
   resolved "file:packages/app"
   dependencies:

@@ -42,6 +42,7 @@ function Sidebar() {
 
 function SidebarLayout() {
   const showSpinnerDialog = useSelector(store, (state) => state.context.showSpinnerDialog);
+  const { sidebar, setSidebar } = useAppStore();
   return (
     <Fragment>
       <Dialog open={showSpinnerDialog}>
@@ -54,8 +55,28 @@ function SidebarLayout() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="w-[300px] border-r bg-card h-full pt-2">
-        <h2 className="text-2xl py-4 uppercase px-3">Solang playground</h2>
+      <div className="w-[300px] border-r border-[#2d2d2d] bg-[#1A1B3A] h-full">
+        {/* Tabs */}
+        <div className="flex border-b border-[#2d2d2d]">
+          <button
+            onClick={() => setSidebar(SidebarView.FILE_EXPLORER)}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${sidebar === SidebarView.FILE_EXPLORER
+              ? 'bg-[#0F0F23] text-white border-b-2 border-b-[#8b5cf6]'
+              : 'bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]'
+              }`}
+          >
+            Files
+          </button>
+          <button
+            onClick={() => setSidebar(SidebarView.COMPILE)}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${sidebar === SidebarView.COMPILE
+              ? 'bg-[#0F0F23] text-white border-b-2 border-b-[#8b5cf6]'
+              : 'bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]'
+              }`}
+          >
+            Examples
+          </button>
+        </div>
         <Sidebar />
       </div>
 
