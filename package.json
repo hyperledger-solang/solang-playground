@@ -2,7 +2,8 @@
   "private": true,
   "workspaces": [
     "packages/app",
-    "packages/frontend"
+    "packages/frontend",
+    "packages/analytics"
   ],
   "scripts": {
     "test": "npm run test --workspaces"
@@ -12,3 +13,4 @@
     "web-tree-sitter-wasm-bindgen": "silvanshade/web-tree-sitter-wasm-bindgen"
   }
 }
+
