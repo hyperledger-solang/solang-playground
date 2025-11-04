@@ -15,6 +15,8 @@ import Spinner from "./Spinner";
 import ContractService from "@/lib/services/server/contract";
 import { Network_Url } from "@/constants";
 import { safeStringify } from "@/utils";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -55,7 +57,7 @@ const defaultState = {
   result: { type: "", value: "" },
   name: "",
 };
-function InvokeFunction({ contractAddress, method }: { contractAddress: string, method: FunctionSpec }) {
+function InvokeFunction({ contractAddress, method }: { contractAddress: string; method: FunctionSpec }) {
   const [sg, setSignature] = useState<ReturnType<typeof createLogSingnature>>(defaultState);
   const [args, setArgs] = useState<Record<string, { type: string; value: string; subType: string }>>({});
   // const contractAddress = useSelector(store, (state) => state.context.contract?.address);
@@ -63,6 +65,16 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
   const toastId = useId();
   const [block, setBlock] = useState(false);
   const [invkRetVal, setInvkRetVal] = useState<any>(null);
+  const recordInvoke = useMutation({
+    mutationFn: async ({ wallet, address, method, txHash }: any) => {
+      return await axios.post("/api/analytics/invoke", {
+        wallet,
+        address,
+        method,
+        txHash,
+      });
+    },
+  });
 
   const handleInputChange = (name: string, value: string, type: string, subType: string) => {
     setArgs((prev) => ({
@@ -99,6 +111,15 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       const contractService = new ContractService(Network_Url.TEST_NET);
       const response = await contractService.invokeContract(requestData);
       const { resultXdr, diagnosticEventsXdr, status } = response;
+
+      if (status === "SUCCESS") {
+        recordInvoke.mutate({
+          wallet: contractService.pubKey(),
+          address: contractAddress,
+          method: method.name,
+          txHash: response.txHash,
+        });
+      }
 
       console.log("Invoke Result", resultXdr);
 
@@ -166,7 +187,6 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
     }
   };
 
-
   return (
     <Fragment>
       <Dialog open={block}>
@@ -181,9 +201,14 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{ marginTop: '2px' }}>
+          <Button
+            variant="outline"
+            key={method.name}
+            className="w-full text-left justify-start items-center btn-custom-invoke"
+            style={{ marginTop: "2px" }}
+          >
             <span>{method.name}</span>
-            {invkRetVal && (<span>{invkRetVal}</span>)}
+            {invkRetVal && <span>{invkRetVal}</span>}
             <ChevronsLeftRightEllipsis className="ml-auto" />
           </Button>
         </DialogTrigger>

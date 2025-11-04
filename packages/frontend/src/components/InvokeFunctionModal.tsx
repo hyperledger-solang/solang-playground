@@ -20,6 +20,8 @@ import { mapIfValid, safeStringify } from "@/utils";
 import { toast } from "sonner";
 import { MessageType } from "vscode-languageserver-protocol";
 import FunctionOutputDisplay from "./FunctionOutputDisplay";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
 
 interface InvokeFunctionModalProps {
     isOpen: boolean;
@@ -35,6 +37,16 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
     const [isInvoking, setIsInvoking] = useState(false);
     const [showOutput, setShowOutput] = useState(false);
     const [lastOutput, setLastOutput] = useState<{ functionName: string; returnValue: any; logs: string[] } | null>(null);
+    const recordInvoke = useMutation({
+        mutationFn: async ({ wallet, address, method, txHash }: any) => {
+            return await axios.post("/api/analytics/invoke", {
+                wallet,
+                address,
+                method,
+                txHash,
+            });
+        },
+    });
 
     const contract = useSelector(store, (state) => state.context.contract);
 
@@ -110,6 +122,15 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             const contractService = new ContractService(Network_Url.TEST_NET);
             const response = await contractService.invokeContract(requestData);
             const { resultXdr, diagnosticEventsXdr, status } = response;
+
+            if (status === "SUCCESS") {
+                recordInvoke.mutate({
+                    wallet: contractService.pubKey(),
+                    address: selectedContractAddress,
+                    method: selectedFunction,
+                    txHash: response.txHash,
+                });
+            }
 
             console.log("Invoke Result", resultXdr);
 
