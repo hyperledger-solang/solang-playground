@@ -17,3 +17,22 @@ export class RecordDeployDto {
   @IsString()
   name?: string;
 }
+
+export class RecordInvokeDto {
+  @IsString()
+  @IsNotEmpty()
+  wallet: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @IsString()
+  @IsNotEmpty()
+  method: string;
+
+  @IsString()
+  @IsNotEmpty()
+  txHash: string;
+}
+
