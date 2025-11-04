@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         source: "/health",
         destination: `${backendUrl}/health`,
       },
+      {
+        source: "/api/analytics/:path*",
+        destination: `http://localhost:4000/analytics/:path*`,
+      }
     ];
   },
 };

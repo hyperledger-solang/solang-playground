@@ -123,7 +123,7 @@ class ContractService {
 
   // 1. upload wasm
   // 2. deploy wasm-hash
-  async deployContract(wasm: Buffer, ctorParamList: IParam[]): Promise<string> {
+  async deployContract(wasm: Buffer, ctorParamList: IParam[]){
     console.log("Starting deployContract with wasm:", wasm.length, "bytes");
     console.log("Constructor params:", ctorParamList);
 
@@ -141,7 +141,16 @@ class ContractService {
 
     console.log("Starting deployByWasmHash...");
     const addr = await this.deployByWasmHash(ctorParamList);
-    return addr;
+
+    if (!addr) {
+      throw new Error("No contract address returned");
+    }
+
+    return {
+      contractAddress: addr,
+      transactionHash: this.curTxnHash,
+      walletAddress: this.pubKey(),
+    };
   }
 
   async pollTxnByHash(hash = this.curTxnHash): Promise<any> {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useSelector } from "@xstate/store/react";
@@ -12,14 +11,29 @@ import { Network_Url } from "@/constants";
 import { logger } from "@/state/utils";
 import { get } from "lodash";
 import { FileType } from "@/types/explorer";
-
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 
 function useDeploy() {
-    const { compileFile } = useCompile();
-
-    const selected = useSelector(store, (state) => state.context.currentFile);
-    const currWasm = useSelector(store, (state) => state.context.currentWasm);
-
+  const { compileFile } = useCompile();
+  const selected = useSelector(store, (state) => state.context.currentFile);
+  const currWasm = useSelector(store, (state) => state.context.currentWasm);
+  const recordDeploy = useMutation({
+    mutationFn: async ({ wallet, address, name, txHash }: any) => {
+      return await axios.post("/api/analytics/deploy", {
+        wallet,
+        address,
+        name,
+        txHash,
+      });
+    },
+    onError: (error) => {
+      console.error("Deployment failed:", error);
+    },
+    onSuccess: () => {
+      console.log("Deployment successful!");
+    },
+  });
 
     const deployWasm = async (wasmBuf: null | Buffer, ctorParamList: IParam[], targetFilePath?: string) => {
         console.log('[tur] deploying', wasmBuf)
@@ -65,7 +79,16 @@ function useDeploy() {
             const idl = await generateIdl(wasmBuf);
             const fltrd = idl.filter((i: FunctionSpec) => i.name.indexOf('constructor') == -1);
             store.send({ type: "updateContract", methods: fltrd });
-            const contractAddress = await contractService.deployContract(wasmBuf, ctorParamList);
+            const { contractAddress, transactionHash, walletAddress } = await contractService.deployContract(
+              wasmBuf,
+              ctorParamList,
+            );
+            recordDeploy.mutate({
+              wallet: walletAddress,
+              address: contractAddress,
+              name: fileToDeploy,
+              txHash: transactionHash,
+            });
             console.log("Contract deployed successfully!", contractAddress);
             if (contractAddress) {
                 // Extract file name from the file object (path format: "explorer.items.src.items['main.sol']")
