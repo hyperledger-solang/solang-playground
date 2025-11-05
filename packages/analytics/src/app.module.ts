@@ -8,7 +8,15 @@ import { AnalyticsService } from "./analytics/analytics.service";
 import { AnalyticsController } from "./analytics/analytics.controller";
 
 @Module({
-  imports: [ConfigModule.forRoot(), PrismaModule, AnalyticsModule],
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath:
+        process.env.NODE_ENV === "production" ? undefined : "../../.env",
+      isGlobal: true,
+    }),
+    PrismaModule,
+    AnalyticsModule,
+  ],
   controllers: [AppController, AnalyticsController],
   providers: [AppService, AnalyticsService],
 })
