@@ -28,6 +28,26 @@ export class AnalyticsController {
     });
   }
 
+  @Get("summary")
+  async getSummaryStats() {
+    return this.analyticsService.getSummaryStats();
+  }
+
+  @Get("recent")
+  async getRecentActivity() {
+    return this.analyticsService.getRecentActivity();
+  }
+
+  @Get("activity-over-time")
+  async getActivityOverTime() {
+    return this.analyticsService.getActivityOverTime();
+  }
+
+  @Get("transaction-distribution")
+  async getTransactionDistribution() {
+    return this.analyticsService.getTransactionDistribution();
+  }
+
   @Get("info")
   async getInfo() {
     return this.analyticsService.getInfo();

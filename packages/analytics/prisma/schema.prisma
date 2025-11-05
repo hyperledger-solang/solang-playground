@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id           String        @id @default(uuid())
-  wallet       String        @unique // wallet, IP, or user ID
+  wallet       String        @unique
   createdAt    DateTime      @default(now())
   transactions Transaction[]
   contracts    Contract[]
@@ -28,13 +28,13 @@ model Contract {
 
 model Transaction {
   id         String          @id @default(uuid())
-  type       TransactionType // Only on-chain actions
+  type       TransactionType
   hash       String?         @unique
   userId     String?
   user       User?           @relation(fields: [userId], references: [id])
   contractId String?
   contract   Contract?       @relation(fields: [contractId], references: [id])
-  method     String? // Invoked method (optional)
+  method     String?
   createdAt  DateTime        @default(now())
 }
 
