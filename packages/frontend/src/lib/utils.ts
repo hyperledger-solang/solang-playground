@@ -68,3 +68,7 @@ export function isValidJSON(jsonString: string): boolean {
     return false;
   }
 }
+
+export function getAnalyticsUrl() {
+  return process.env.NEXT_PUBLIC_ANALYTICS_URL || "http://localhost:4000";
+}
