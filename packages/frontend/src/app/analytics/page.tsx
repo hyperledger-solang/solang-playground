@@ -4,6 +4,8 @@ import { ActivityOverTimeChart } from "./components/activity-over-time-chart";
 import { TransactionDistributionChart } from "./components/transaction-distribution-chart";
 import { RecentActivityTable } from "./components/recent-activity-table";
 import { getAnalyticsUrl } from "@/lib/utils";
+import { UserTrendChart } from "./components/users-trend";
+import { ActiveUsersChart } from "./components/active-users";
 
 async function getSummaryData() {
   const url = getAnalyticsUrl();
@@ -37,6 +39,16 @@ export default async function AnalyticsDashboard() {
           <StatCard title="Contract Invocations" value={invokes} icon={<Zap className="h-4 w-4" />} />
           <StatCard title="Unique Users" value={users} icon={<Users className="h-4 w-4" />} />
           <StatCard title="Total Transactions" value={transactions} icon={<TrendingUp className="h-4 w-4" />} />
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4">
+          <div className="lg:col-span-2">
+            <UserTrendChart />
+          </div>
+
+          <div className="lg:col-span-2">
+            <ActiveUsersChart />
+          </div>
         </div>
 
         {/* Charts Grid */}
