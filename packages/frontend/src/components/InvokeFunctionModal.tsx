@@ -22,6 +22,8 @@ import { MessageType } from "vscode-languageserver-protocol";
 import FunctionOutputDisplay from "./FunctionOutputDisplay";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
+import useWallet from "@/hooks/useWallet";
+import { truncateAddress } from "@/lib/web3";
 
 interface InvokeFunctionModalProps {
     isOpen: boolean;
@@ -32,21 +34,17 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
     const [selectedContractAddress, setSelectedContractAddress] = useState<string>("");
     const [selectedFunction, setSelectedFunction] = useState<string>("");
     const [functionArgs, setFunctionArgs] = useState<IParam[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<string>("0x1a2b...c3d4");
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
     const [isInvoking, setIsInvoking] = useState(false);
     const [showOutput, setShowOutput] = useState(false);
     const [lastOutput, setLastOutput] = useState<{ functionName: string; returnValue: any; logs: string[] } | null>(null);
     const recordInvoke = useMutation({
-        mutationFn: async ({ wallet, address, method, txHash }: any) => {
-            return await axios.post("/api/analytics/invoke", {
-                wallet,
-                address,
-                method,
-                txHash,
-            });
+        mutationFn: async (data: any) => {
+            return await axios.post("/api/analytics/invoke", data);
         },
     });
+    const { keypair, publicKey } = useWallet();
+    const [selectedAccount, setSelectedAccount] = useState<string>(publicKey);
 
     const contract = useSelector(store, (state) => state.context.contract);
 
@@ -119,7 +117,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             console.log("Invoke Data", requestData);
             logger.info(safeStringify(requestData, 2));
 
-            const contractService = new ContractService(Network_Url.TEST_NET);
+            const contractService = new ContractService(Network_Url.TEST_NET, keypair);
             const response = await contractService.invokeContract(requestData);
             const { resultXdr, diagnosticEventsXdr, status } = response;
 
@@ -354,11 +352,11 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                             <Label className="text-[#cccccc] font-medium">Account</Label>
                             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
                                 <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
-                                    <SelectValue placeholder="0x1a2b...c3d4 (Default Account)" />
+                                    <SelectValue placeholder={truncateAddress(publicKey)} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    <SelectItem value="0x1a2b...c3d4" className="text-white hover:bg-[#3a3a3a]">
-                                        0x1a2b...c3d4 (Default Account)
+                                    <SelectItem value={publicKey} className="text-white hover:bg-[#3a3a3a]">
+                                        {truncateAddress(publicKey)}
                                     </SelectItem>
                                 </SelectContent>
                             </Select>

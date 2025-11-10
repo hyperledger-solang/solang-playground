@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getAnalyticsUrl } from "@/lib/utils";
+import { truncateAddress } from "@/lib/web3";
 
 async function getRecentActivity() {
   const url = getAnalyticsUrl();
@@ -23,11 +24,7 @@ export async function RecentActivityTable() {
     return action === "DEPLOY"
       ? "bg-green-500/10 text-green-700 dark:text-green-400"
       : "bg-blue-500/10 text-blue-700 dark:text-blue-400";
-  };
-
-  const truncateAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
+  }; 
 
   return (
     <Card className="border-border bg-card">

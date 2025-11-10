@@ -13,6 +13,7 @@ import { get } from "lodash";
 import { FileType } from "@/types/explorer";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
+import useWallet from "./useWallet";
 
 function useDeploy() {
   const { compileFile } = useCompile();
@@ -34,6 +35,7 @@ function useDeploy() {
       console.log("Deployment successful!");
     },
   });
+  const { keypair } = useWallet();
 
     const deployWasm = async (wasmBuf: null | Buffer, ctorParamList: IParam[], targetFilePath?: string) => {
         console.log('[tur] deploying', wasmBuf)
@@ -48,7 +50,7 @@ function useDeploy() {
         try {
             store.send({ type: "setDialogSpinner", show: true });
             logger.info(`Deploying contract from file: ${fileToDeploy}`);
-            const contractService = new ContractService(Network_Url.TEST_NET)
+            const contractService = new ContractService(Network_Url.TEST_NET, keypair);
 
             // If we don't have WASM buffer, compile the target file
             if (!wasmBuf && fileToDeploy && fileToDeploy !== 'explorer') {

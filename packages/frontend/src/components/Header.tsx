@@ -18,6 +18,8 @@ import DeployContractModal from "./DeployContractModal";
 import InvokeFunctionModal from "./InvokeFunctionModal";
 import { get } from "lodash";
 import ErrorModal from "./ErrorModal";
+import useWallet from "@/hooks/useWallet";
+import { truncateAddress } from "@/lib/web3";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -129,6 +131,7 @@ function Header() {
   const [openInvoke, setOpenInvoke] = useState(false);
   const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
   const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
+  const { publicKey } = useWallet();
 
   return (
     <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
@@ -186,7 +189,7 @@ function Header() {
         {/* Account Dropdown */}
         <div className="flex items-center gap-2">
           <select className="bg-[#2d2d2d] border border-[#404040] text-white text-sm px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]">
-            <option>Account: 0x1a2b...c3d4</option>
+            <option>Account: {truncateAddress(publicKey)}</option>
           </select>
         </div>
 

@@ -17,6 +17,7 @@ import { Network_Url } from "@/constants";
 import { safeStringify } from "@/utils";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
+import useWallet from "@/hooks/useWallet";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -66,15 +67,11 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
   const [block, setBlock] = useState(false);
   const [invkRetVal, setInvkRetVal] = useState<any>(null);
   const recordInvoke = useMutation({
-    mutationFn: async ({ wallet, address, method, txHash }: any) => {
-      return await axios.post("/api/analytics/invoke", {
-        wallet,
-        address,
-        method,
-        txHash,
-      });
+    mutationFn: async (data: any) => {
+      return await axios.post("/api/analytics/invoke", data);
     },
   });
+  const { keypair } = useWallet();
 
   const handleInputChange = (name: string, value: string, type: string, subType: string) => {
     setArgs((prev) => ({
@@ -108,7 +105,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
       toast.loading("Invoking function...", { id: toastId });
       console.log("Invoke Data", requestData);
 
-      const contractService = new ContractService(Network_Url.TEST_NET);
+      const contractService = new ContractService(Network_Url.TEST_NET, keypair);
       const response = await contractService.invokeContract(requestData);
       const { resultXdr, diagnosticEventsXdr, status } = response;
 
