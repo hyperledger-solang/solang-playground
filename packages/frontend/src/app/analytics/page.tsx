@@ -43,11 +43,11 @@ export default async function AnalyticsDashboard() {
 
         <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-2">
-            <UserTrendChart />
+            <ActiveUsersChart />
           </div>
 
           <div className="lg:col-span-2">
-            <ActiveUsersChart />
+            <UserTrendChart />
           </div>
         </div>
 

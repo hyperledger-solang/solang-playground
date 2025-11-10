@@ -49,7 +49,7 @@ export function ActiveUsersChart() {
               stroke="#5c9eb8"
               dot={false}
               strokeWidth={2}
-              name="Unique Users"
+              name="Active Users"
               isAnimationActive={true}
             />
           </LineChart>
