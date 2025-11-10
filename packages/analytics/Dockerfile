@@ -3,6 +3,9 @@
 # ---------- Base Builder Stage ----------
 FROM node:22-alpine AS builder
 
+# Needed for Yarn to fetch git dependencies (e.g., GitHub shorthands)
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 ARG DATABASE_URL
@@ -25,6 +28,9 @@ RUN yarn workspace analytics build
 # ---------- Deps Stage ----------
 FROM node:22-alpine AS deps
 
+# Needed for Yarn to fetch git dependencies (e.g., GitHub shorthands)
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 COPY package.json yarn.lock ./
@@ -44,6 +50,10 @@ COPY --from=builder /app/packages/analytics/dist ./dist
 COPY --from=deps /app/packages/analytics/node_modules ./node_modules
 COPY --from=builder /app/packages/analytics/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/packages/analytics/node_modules/@prisma ./node_modules/@prisma
+RUN mkdir -p ./node_modules/.bin
+# Include Prisma CLI in production image for runtime migrations
+COPY --from=builder /app/packages/analytics/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/packages/analytics/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 COPY packages/analytics/prisma ./prisma
 

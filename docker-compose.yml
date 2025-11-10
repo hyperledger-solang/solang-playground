@@ -1,14 +1,57 @@
-version: "3.8"
 services:
+  database:
+    image: bitnami/postgresql:latest
+    container_name: solang-postgres
+    restart: always
+    env_file: .env
+    volumes:
+      - postgresql:/bitnami/postgresql
+    tmpfs:
+      - /var/lib/pg_stat_tmp
+    ports:
+      - "${POSTGRES_PORT:-5438}:5432"
+    environment:
+      - POSTGRESQL_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRESQL_PASSWORD=${POSTGRES_PASS}
+      - POSTGRESQL_DATABASE=${POSTGRES_DATABASE}
+      - POSTGRESQL_POSTGRES_PASSWORD=${POSTGRES_ADMIN}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  analytics:
+    image: solang-analytics:local
+    container_name: analytics
+    restart: always
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASS}@database:5432/${POSTGRES_DATABASE}
+    command: sh -c "npx prisma db push && node dist/src/main.js"
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+
   playground:
-    image: salaheldin18/solang-playground-amd64:latest
+    image: solang-playground:local
     container_name: playground
     restart: always
     volumes:
       - /tmp:/tmp
     ports:
-      - "9000:9000"
-      - "3000:3000"  # Expose Next.js port
+      - "3000:3000"   # Next.js UI
+      - "4444:4444"   # Backend (optional to expose)
     environment:
       - DOCKER_ENV=true
+      - NEXT_PUBLIC_ANALYTICS_URL=http://analytics:4000
+      - BACKEND_INTERNAL_URL=http://localhost:4444
+      - ANALYTICS_INTERNAL_URL=http://analytics:4000
+    depends_on:
+      - analytics
     runtime: sysbox-runc
+
+volumes:
+  postgresql:

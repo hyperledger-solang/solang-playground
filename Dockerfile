@@ -1,4 +1,4 @@
-FROM rust:1.86.0 as builder
+FROM rust:1.86.0 AS builder
 
 
 # Install build dependencies
@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install NVM
-ENV NVM_DIR /usr/local/nvm
+ENV NVM_DIR=/usr/local/nvm
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 
@@ -18,7 +18,7 @@ RUN rustup default stable && \
     rustup target add wasm32-unknown-unknown
 
 # Install Node.js
-ENV NODE_VERSION v20.14.0
+ENV NODE_VERSION=v20.14.0
 RUN . $NVM_DIR/nvm.sh && \
     nvm install $NODE_VERSION && \
     nvm use $NODE_VERSION
@@ -32,7 +32,8 @@ WORKDIR /app
 
 # Copy only necessary files for dependency installation
 COPY Cargo.toml Cargo.lock Makefile.toml ./
-COPY packages/frontend/package.json packages/frontend/package-lock.json ./packages/frontend/
+# Copy frontend manifest (avoid missing package-lock.json)
+COPY packages/frontend/package.json ./packages/frontend/
 
 # Install frontend dependencies
 RUN . $NVM_DIR/nvm.sh && \

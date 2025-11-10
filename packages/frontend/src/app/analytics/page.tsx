@@ -1,4 +1,5 @@
 import { Activity, TrendingUp, Users, Zap } from "lucide-react";
+export const dynamic = 'force-dynamic';
 import { StatCard } from "./components/stat-card";
 import { ActivityOverTimeChart } from "./components/activity-over-time-chart";
 import { TransactionDistributionChart } from "./components/transaction-distribution-chart";
