@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { TransactionType } from "@prisma/client";
 import { PrismaService } from "prisma/prisma.service";
 import { RecordDeployDto, RecordInvokeDto } from "./analytics.dto";
+import { fillMissingDates } from "src/libs/utils";
 
 @Injectable()
 export class AnalyticsService {
@@ -106,11 +107,7 @@ export class AnalyticsService {
     ORDER BY DATE("createdAt") ASC;
   `;
 
-    return results.map((r) => ({
-      date: r.date, // e.g. "2025-11-03"
-      deployments: Number(r.deployments),
-      invocations: Number(r.invocations),
-    }));
+    return fillMissingDates(results, ["deployments", "invocations"]);
   }
 
   async getTransactionDistribution() {
@@ -127,6 +124,43 @@ export class AnalyticsService {
     }));
 
     return data;
+  }
+
+  async getUniqueUsersPerDay() {
+    const raw = await this.prisma.$queryRaw<{ date: string; users: number }[]>`
+      SELECT
+        DATE("createdAt") AS date,
+        COUNT(DISTINCT "wallet") AS users
+      FROM "User"
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt");
+    `;
+
+    const filled = fillMissingDates(raw, ["users"]);
+
+    return filled;
+  }
+
+  async getActiveUsersPerDay() {
+    const raw = await this.prisma.$queryRaw<{ date: string; users: number }[]>`
+      SELECT
+        DATE(a."createdAt") AS date,
+        COUNT(DISTINCT a."userId") AS users
+      FROM (
+        SELECT "userId", "createdAt"
+        FROM "Activity"
+        WHERE "type" = 'COMPILE'
+        UNION ALL
+        SELECT "userId", "createdAt"
+        FROM "Transaction"
+        WHERE "type" IN ('DEPLOY', 'INVOKE')
+      ) AS a
+      WHERE a."createdAt" >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(a."createdAt")
+      ORDER BY DATE(a."createdAt");
+    `;
+
+    return fillMissingDates(raw, ["users"]);
   }
 
   async getInfo() {

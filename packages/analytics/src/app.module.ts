@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "prisma/prisma.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
@@ -18,6 +17,6 @@ import { AnalyticsController } from "./analytics/analytics.controller";
     AnalyticsModule,
   ],
   controllers: [AppController, AnalyticsController],
-  providers: [AppService, AnalyticsService],
+  providers: [AnalyticsService],
 })
 export class AppModule {}

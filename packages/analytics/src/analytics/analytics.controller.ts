@@ -48,6 +48,16 @@ export class AnalyticsController {
     return this.analyticsService.getTransactionDistribution();
   }
 
+  @Get("unique-users-per-day")
+  async getUniqueUsersPerDay() {
+    return this.analyticsService.getUniqueUsersPerDay();
+  }
+
+  @Get("active-users-per-day")
+  async getActiveUsersPerDay() {
+    return this.analyticsService.getActiveUsersPerDay();
+  }
+
   @Get("info")
   async getInfo() {
     return this.analyticsService.getInfo();
