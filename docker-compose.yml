@@ -3,7 +3,7 @@ services:
     image: bitnami/postgresql:latest
     container_name: solang-postgres
     restart: always
-    env_file: .env
+    env_file: example.env
     volumes:
       - postgresql:/bitnami/postgresql
     tmpfs:
@@ -22,10 +22,13 @@ services:
       retries: 5
 
   analytics:
+    build:
+      context: .
+      dockerfile: packages/analytics/Dockerfile
     image: solang-analytics:local
     container_name: analytics
     restart: always
-    env_file: .env
+    env_file: example.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASS}@database:5432/${POSTGRES_DATABASE}
     command: sh -c "npx prisma db push && node dist/src/main.js"
@@ -36,6 +39,9 @@ services:
       - "4000:4000"
 
   playground:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: solang-playground:local
     container_name: playground
     restart: always
