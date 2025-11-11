@@ -1,36 +1,41 @@
-export function fillMissingDates<
-  T extends { date: string; [key: string]: number | string }
->(
-  data: T[],
-  valueKeys: (keyof T)[],
-  days = 30
-): T[] {
-  const result: T[] = [];
-  const today = new Date();
-  const start = new Date();
-  start.setDate(today.getDate() - (days - 1));
+import { addDays, addWeeks, formatISO, startOfWeek } from "date-fns";
 
-  // Build lookup map: { 'YYYY-MM-DD': original data object }
+export type TimeUnit = "day" | "week";
+
+interface FillOptions {
+  unit?: TimeUnit;
+  range?: number; // days or weeks depending on unit
+  valueKeys?: string[];
+}
+
+export function fillMissingTimeUnits<T extends { date: string }>(
+  data: T[],
+  { unit = "day", range = 30, valueKeys = [] }: FillOptions = {},
+) {
+  const result: T[] = [];
+
+  const today = new Date();
+  const stepFn = unit === "week" ? addWeeks : addDays;
+  const start = stepFn(today, -(range - 1));
+
+  const normalize = (date: Date) =>
+    unit === "week" ? startOfWeek(date, { weekStartsOn: 1 }) : date;
+
   const map = new Map<string, T>();
   for (const d of data) {
-    const key = new Date(d.date).toISOString().split("T")[0];
+    const key = formatISO(normalize(new Date(d.date)), { representation: "date" });
     map.set(key, d);
   }
 
-  // Fill day by day
-  for (let day = new Date(start); day <= today; day.setDate(day.getDate() + 1)) {
-    const key = day.toISOString().split("T")[0];
+  for (let d = normalize(start); d <= today; d = stepFn(d, 1)) {
+    const key = formatISO(normalize(d), { representation: "date" });
     const existing = map.get(key);
-
-    // Create base object with date and 0 defaults for all keys
-    const filled = { date: key } as T;
+    const entry = { date: key } as T;
     for (const k of valueKeys) {
-      filled[k] = Number(existing?.[k] ?? 0) as T[typeof k];
+      entry[k] = existing ? Number(existing[k]) : (0 as T[keyof T]);
     }
-
-    result.push(filled);
+    result.push(entry);
   }
 
   return result;
 }
-

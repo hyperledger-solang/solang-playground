@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { TransactionType } from "@prisma/client";
 import { PrismaService } from "prisma/prisma.service";
 import { RecordDeployDto, RecordInvokeDto } from "./analytics.dto";
-import { fillMissingDates } from "src/libs/utils";
+import { fillMissingTimeUnits } from "src/libs/utils";
 
 @Injectable()
 export class AnalyticsService {
@@ -107,7 +107,11 @@ export class AnalyticsService {
     ORDER BY DATE("createdAt") ASC;
   `;
 
-    return fillMissingDates(results, ["deployments", "invocations"]);
+    return results.map((r) => ({
+      ...r,
+      deployments: Number(r.deployments),
+      invocations: Number(r.invocations),
+    }));
   }
 
   async getTransactionDistribution() {
@@ -119,7 +123,7 @@ export class AnalyticsService {
     });
 
     const data = results.map((r) => ({
-      name: r.type.charAt(0) + r.type.slice(1).toLowerCase(), // "DEPLOY" → "Deploy"
+      name: r.type.charAt(0) + r.type.slice(1).toLowerCase(),
       value: r._count._all,
     }));
 
@@ -136,7 +140,34 @@ export class AnalyticsService {
       ORDER BY DATE("createdAt");
     `;
 
-    const filled = fillMissingDates(raw, ["users"]);
+    const filled = fillMissingTimeUnits(
+      raw.map((r) => ({ ...r, users: Number(r.users) })),
+      {
+        unit: "day",
+        range: 30,
+        valueKeys: ["users"],
+      },
+    );
+
+    return filled;
+  }
+
+  async getUniqueUsersPerWeek() {
+    const raw = await this.prisma.$queryRaw<{ date: string; users: number }[]>`
+      SELECT
+        date_trunc('week', "createdAt") AS date,
+        COUNT(DISTINCT "wallet") AS users
+      FROM "User"
+      WHERE "createdAt" >= NOW() - INTERVAL '90 days'
+      GROUP BY date_trunc('week', "createdAt")
+      ORDER BY date_trunc('week', "createdAt");
+    `;
+
+    const filled = fillMissingTimeUnits(raw, {
+      unit: "week",
+      range: 8,
+      valueKeys: ["users"],
+    });
 
     return filled;
   }
@@ -160,7 +191,41 @@ export class AnalyticsService {
       ORDER BY DATE(a."createdAt");
     `;
 
-    return fillMissingDates(raw, ["users"]);
+    const filled = fillMissingTimeUnits(raw, {
+      unit: "day",
+      range: 30,
+      valueKeys: ["users"],
+    });
+
+    return filled;
+  }
+
+  async getActiveUsersPerWeek() {
+    const raw = await this.prisma.$queryRaw<{ date: string; users: number }[]>`
+    SELECT
+      date_trunc('week', a."createdAt") AS date,
+      COUNT(DISTINCT a."userId") AS users
+    FROM (
+      SELECT "userId", "createdAt"
+      FROM "Activity"
+      WHERE "type" = 'COMPILE'
+      UNION ALL
+      SELECT "userId", "createdAt"
+      FROM "Transaction"
+      WHERE "type" IN ('DEPLOY', 'INVOKE')
+    ) AS a
+    WHERE a."createdAt" >= NOW() - INTERVAL '90 days'
+    GROUP BY date_trunc('week', a."createdAt")
+    ORDER BY date_trunc('week', a."createdAt");
+  `;
+
+    const filled = fillMissingTimeUnits(raw, {
+      unit: "week",
+      range: 8,
+      valueKeys: ["users"],
+    });
+
+    return filled;
   }
 
   async getInfo() {

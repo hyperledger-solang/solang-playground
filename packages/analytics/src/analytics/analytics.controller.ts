@@ -53,9 +53,19 @@ export class AnalyticsController {
     return this.analyticsService.getUniqueUsersPerDay();
   }
 
+  @Get("unique-users-per-week")
+  async getUniqueUsersPerWeek() {
+    return this.analyticsService.getUniqueUsersPerWeek();
+  }
+
   @Get("active-users-per-day")
   async getActiveUsersPerDay() {
     return this.analyticsService.getActiveUsersPerDay();
+  }
+
+  @Get("active-users-per-week")
+  async getActiveUsersPerWeek() {
+    return this.analyticsService.getActiveUsersPerWeek();
   }
 
   @Get("info")
