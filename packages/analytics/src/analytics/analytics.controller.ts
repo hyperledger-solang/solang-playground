@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get } from "@nestjs/common";
 import { AnalyticsService } from "./analytics.service";
-import { RecordDeployDto, RecordInvokeDto } from "./analytics.dto";
+import { RecordDeployDto, RecordInvokeDto, RecordCompileDto } from "./analytics.dto";
 
 @Controller("analytics")
 export class AnalyticsController {
@@ -26,6 +26,12 @@ export class AnalyticsController {
       method,
       txHash,
     });
+  }
+
+  @Post("compile")
+  async recordCompile(@Body() body: RecordCompileDto) {
+    const { wallet } = body;
+    return this.analyticsService.recordCompile(wallet);
   }
 
   @Get("summary")

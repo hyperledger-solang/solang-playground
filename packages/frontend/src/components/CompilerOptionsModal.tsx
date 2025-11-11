@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Checkbox } from "./ui/checkbox";
-import { FaCog, FaCode, FaCheck, FaHammer } from "react-icons/fa";
+import { FaCog,FaHammer } from "react-icons/fa";
 import useCompile from "@/hooks/useCompile";
 import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import { get } from "lodash";
 import { FileType } from "@/types/explorer";
 import ErrorModal from "./ErrorModal";
+import useWallet from "@/hooks/useWallet";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 
 interface CompilerOptionsModalProps {
     isOpen: boolean;
@@ -32,6 +33,13 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const [isCompiling, setIsCompiling] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const { publicKey } = useWallet();
+    const recordCompile = useMutation({
+      mutationFn: async (wallet: any) =>
+        axios.post("/api/analytics/compile", {
+          wallet,
+        }),
+    });
 
     const { compileFile } = useCompile();
     const selected = useSelector(store, (state) => state.context.currentFile);
@@ -58,6 +66,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
             // Only close modal if compilation was successful
             if (result.data) {
                 onClose();
+                publicKey && recordCompile.mutate(publicKey);
+
             }
         } catch (error) {
             console.error('Compilation failed:', error);

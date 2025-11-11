@@ -36,3 +36,8 @@ export class RecordInvokeDto {
   txHash: string;
 }
 
+export class RecordCompileDto {
+  @IsString()
+  @IsNotEmpty()
+  wallet: string;
+}

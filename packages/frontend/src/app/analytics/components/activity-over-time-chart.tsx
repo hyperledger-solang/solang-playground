@@ -8,13 +8,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const CHART_1 = "#a85c3c";
 const CHART_2 = "#5c9eb8";
+const CHART_3 = "#8b5cf6";
 const BORDER_COLOR = "#2d2d2d";
 const TEXT_COLOR = "#a6a6a6";
 
 export async function getActivityOverTime() {
   const data = await axios.get("/api/analytics/activity-over-time");
-  console.log("data", data);
-  return (data.data || []) as { date: string; deployments: number; invocations: number }[];
+  return (data.data || []) as { date: string; deployments: number; invocations: number; compiles: number }[];
 }
 
 export function ActivityOverTimeChart() {
@@ -66,6 +66,15 @@ export function ActivityOverTimeChart() {
               dot={false}
               strokeWidth={2}
               name="Invocations"
+              isAnimationActive={true}
+            />
+            <Line
+              type="monotone"
+              dataKey="compiles"
+              stroke={CHART_3}
+              dot={false}
+              strokeWidth={2}
+              name="Compiles"
               isAnimationActive={true}
             />
           </LineChart>

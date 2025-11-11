@@ -3,6 +3,7 @@ import { TransactionType } from "@prisma/client";
 import { PrismaService } from "prisma/prisma.service";
 import { RecordDeployDto, RecordInvokeDto } from "./analytics.dto";
 import { fillMissingTimeUnits } from "src/libs/utils";
+import { ActivityOverTimeType } from "src/libs/types";
 
 @Injectable()
 export class AnalyticsService {
@@ -95,22 +96,30 @@ export class AnalyticsService {
   }
 
   async getActivityOverTime() {
-    const results = await this.prisma.$queryRaw<
-      { date: string; deployments: number; invocations: number }[]
-    >`
+    const results = await this.prisma.$queryRaw<ActivityOverTimeType[]>`
     SELECT
-      DATE("createdAt") AS date,
-      COUNT(*) FILTER (WHERE "type" = 'DEPLOY') AS deployments,
-      COUNT(*) FILTER (WHERE "type" = 'INVOKE') AS invocations
-    FROM "Transaction"
-    GROUP BY DATE("createdAt")
-    ORDER BY DATE("createdAt") ASC;
+      DATE(a."createdAt") AS date,
+      COUNT(*) FILTER (WHERE a."type" = 'DEPLOY') AS deployments,
+      COUNT(*) FILTER (WHERE a."type" = 'INVOKE') AS invocations,
+      COUNT(*) FILTER (WHERE a."type" = 'COMPILE') AS compiles
+    FROM (
+      SELECT "createdAt", "type"::text AS "type"
+      FROM "Transaction"
+      WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+      UNION ALL
+      SELECT "createdAt", "type"::text AS "type"
+      FROM "Activity"
+      WHERE "type" = 'COMPILE' AND "createdAt" >= NOW() - INTERVAL '30 days'
+    ) AS a
+    GROUP BY DATE(a."createdAt")
+    ORDER BY DATE(a."createdAt") ASC;
   `;
 
     return results.map((r) => ({
       ...r,
       deployments: Number(r.deployments),
       invocations: Number(r.invocations),
+      compiles: Number(r.compiles),
     }));
   }
 
@@ -226,6 +235,21 @@ export class AnalyticsService {
     });
 
     return filled;
+  }
+
+  async recordCompile(wallet: string) {
+    const user = await this.prisma.user.upsert({
+      where: { wallet: wallet },
+      update: {},
+      create: { wallet: wallet },
+    });
+
+    return await this.prisma.activity.create({
+      data: {
+        type: "COMPILE",
+        userId: user.id,
+      },
+    });
   }
 
   async getInfo() {
