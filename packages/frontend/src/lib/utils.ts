@@ -6,19 +6,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export async function getNetworkDetails(server: rpc.Server): Promise<{ 
-  friendBotUrl: string; 
-  passphrase: string; 
-  protocolVersion: string 
+export async function getNetworkDetails(server: rpc.Server): Promise<{
+  friendBotUrl: string;
+  passphrase: string;
+  protocolVersion: string;
 }> {
   const network = await server.getNetwork();
-  
 
   return {
-    friendBotUrl: (network.friendbotUrl as string),
+    friendBotUrl: network.friendbotUrl as string,
     passphrase: network.passphrase,
-    protocolVersion: network.protocolVersion
-  }
+    protocolVersion: network.protocolVersion,
+  };
 }
 
 export const downloadBlob = (code: number[]): void => {
@@ -72,3 +71,24 @@ export function isValidJSON(jsonString: string): boolean {
 export function getAnalyticsUrl() {
   return process.env.NEXT_PUBLIC_ANALYTICS_URL || "http://localhost:4000";
 }
+
+export const formatWeekLabel = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+export const formatWeekRange = (dateStr: string) => {
+  const startDate = new Date(dateStr);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+
+  const startMonth = startDate.toLocaleDateString("en-US", { month: "short" });
+  const endMonth = endDate.toLocaleDateString("en-US", { month: "short" });
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`;
+  }
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+};
