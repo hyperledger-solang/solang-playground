@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun } from "react-icons/fa";
+import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun, FaBug } from "react-icons/fa";
 import Image from "next/image";
 import SolangLogo from "@/assets/image/solang-logo.png";
 import { useSelector } from "@xstate/store/react";
@@ -178,6 +178,15 @@ function Header() {
       <div className="flex items-center gap-6">
         {/* Network Information */}
         <div className="flex items-center gap-3 text-[#9ca3af] text-sm">
+          <a
+            href="https://github.com/hyperledger-solang/solang-playground/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 text-[#9ca3af] hover:text-white hover:bg-[#2a2b5a] rounded transition-colors"
+          >
+            <FaBug size={12} />
+            Report Issue
+          </a>
           <span>Target: Soroban</span>
           <span>|</span>
           <div className="flex items-center gap-2">
