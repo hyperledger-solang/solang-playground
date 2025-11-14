@@ -44,8 +44,7 @@ RUN cargo make deps-wasm && \
     cargo make build-backend
 
 # Build frontend with proper context
-RUN cd packages/frontend && \
-    npm run build
+RUN npm run build --workspace=frontend
 
 # Build bindings after frontend is built
 RUN cargo make build-bindings
