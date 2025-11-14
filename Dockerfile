@@ -30,12 +30,11 @@ WORKDIR /app
 # Copy configuration files for better caching
 COPY Cargo.toml Cargo.lock Makefile.toml ./
 
-# Copy frontend package files
-COPY packages/frontend/package.json packages/frontend/package-lock.json* ./packages/frontend/
+# Copy root package files for workspace dependencies
+COPY package.json package-lock.json* ./
 
-# Install frontend dependencies (use npm ci for reproducible builds)
-RUN cd packages/frontend && \
-    if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
+# Install all workspace dependencies at root (use npm ci for reproducible builds)
+RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 
 # Copy the rest of the source code
 COPY . .
