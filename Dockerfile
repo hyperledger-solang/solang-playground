@@ -30,19 +30,13 @@ RUN . $NVM_DIR/nvm.sh && \
 
 WORKDIR /app
 
-# Copy only necessary files for dependency installation
-COPY Cargo.toml Cargo.lock Makefile.toml ./
-COPY packages/frontend/package.json packages/frontend/package-lock.json ./packages/frontend/
-
+COPY . .
 # Install frontend dependencies
 RUN . $NVM_DIR/nvm.sh && \
     nvm use $NODE_VERSION && \
     cd packages/frontend && \
     npm install --include=dev && \
     npm ls @stellar/stellar-sdk
-
-# Copy the rest of the source code
-COPY . .
 
 # Build the application (with corrected paths)
 # Build the application
