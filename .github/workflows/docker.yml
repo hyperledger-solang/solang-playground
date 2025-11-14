@@ -3,11 +3,11 @@ name: Docker CI
 on:
   push:
     branches:
-      - feat/issue-button
+      - feat/issue-buttons
 
   pull_request:
     branches:
-      - feat/issue-button
+      - feat/issue-buttons
 
 
 jobs:

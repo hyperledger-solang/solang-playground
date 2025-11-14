@@ -47,16 +47,15 @@ COPY . .
 
 # Build the application (with corrected paths)
 # Build the application
-# Build the application
-ENV NEXT_PUBLIC_API_URL=http://localhost:9000
-
-RUN bash -ic "source $NVM_DIR/nvm.sh && \
+RUN . $NVM_DIR/nvm.sh && \
     nvm use $NODE_VERSION && \
     cargo make deps-wasm && \
     cargo make build-backend && \
-    echo 'Building frontend app...' && \
-    cd packages/frontend && npm run build && \
-    cargo make build-bindings"
+    echo "Building frontend app..." && \
+    (cd packages/frontend && npm run build) && \
+    echo "Building frontend production bundle..." && \
+    (cd packages/frontend && npm run build) && \
+    cargo make build-bindings
 
 
 # Stage 2: Final runtime image
