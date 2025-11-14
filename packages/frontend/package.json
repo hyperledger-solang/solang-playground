@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "set NODE_ENV=production & next build",
+    "build": "cross-env NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -53,6 +53,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@types/lodash": "^4.17.13",
     "@types/node": "^20",
     "@types/react": "^18",
