@@ -1,58 +1,67 @@
-FROM rust:1.86.0 AS builder
+FROM rust:1.86.0 as builder
+
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     curl \
-    build-essential \
-    python3 \
-    make \
-    g++ \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js directly (simpler and more reliable than NVM in Docker)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
-
-# Verify Node.js and npm installation
-RUN node --version && npm --version
+# Install NVM
+ENV NVM_DIR /usr/local/nvm
+RUN mkdir -p $NVM_DIR && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 
 # Set up Rust environment
 RUN rustup default stable && \
     rustup target add wasm32-unknown-unknown
 
+# Install Node.js
+ENV NODE_VERSION v20.14.0
+RUN . $NVM_DIR/nvm.sh && \
+    nvm install $NODE_VERSION && \
+    nvm use $NODE_VERSION
+
 # Install cargo-make
-RUN cargo install cargo-make --locked
+RUN . $NVM_DIR/nvm.sh && \
+    nvm use $NODE_VERSION && \
+    cargo install cargo-make --locked
 
 WORKDIR /app
 
-# Copy configuration files for better caching
+# Copy only necessary files for dependency installation
 COPY Cargo.toml Cargo.lock Makefile.toml ./
+COPY packages/frontend/package.json packages/frontend/package-lock.json ./packages/frontend/
 
-# Copy root package files for workspace dependencies
-COPY package.json package-lock.json* ./
-
-# Install all workspace dependencies at root (use npm ci for reproducible builds)
-RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
+# Install frontend dependencies
+RUN . $NVM_DIR/nvm.sh && \
+    nvm use $NODE_VERSION && \
+    cd packages/frontend && \
+    npm install --include=dev && \
+    npm ls @stellar/stellar-sdk
 
 # Copy the rest of the source code
 COPY . .
 
+# Build the application (with corrected paths)
 # Build the application
-RUN cargo make deps-wasm && \
-    cargo make build-backend
+RUN . $NVM_DIR/nvm.sh && \
+    nvm use $NODE_VERSION && \
+    cargo make deps-wasm && \
+    cargo make build-backend && \
+    echo "Building frontend app..." && \
+    (cd packages/frontend && npm run build) && \
+    echo "Building frontend production bundle..." && \
+    (cd packages/frontend && npm run build) && \
+    cargo make build-bindings
 
-# Build frontend with proper context
-RUN npm run build --workspace=frontend
-
-# Build bindings after frontend is built
-RUN cargo make build-bindings
 
 # Stage 2: Final runtime image
 FROM nestybox/ubuntu-jammy-systemd-docker:latest
 
-# Install runtime dependencies
+
+# Install runtime dependencies + packages required by NodeSource
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     curl \
@@ -62,21 +71,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js for runtime
+# Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get update && apt-get install -y nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy built artifacts from builder stage
+# Copy built artifacts from builder
 COPY --from=builder /app/target/release/backend ./target/release/
-
-# Copy frontend build artifacts
 COPY --from=builder /app/packages/frontend/.next ./packages/frontend/.next
 COPY --from=builder /app/packages/frontend/node_modules ./packages/frontend/node_modules
-COPY --from=builder /app/packages/frontend/package.json ./packages/frontend/
-COPY --from=builder /app/packages/frontend/public ./packages/frontend/public
 
 # Create symbolic link for frontend dist
 RUN mkdir -p /app/packages/app && \
@@ -90,14 +95,5 @@ COPY start-services.sh /app/start-services.sh
 RUN dos2unix /usr/local/bin/on-start.sh /app/start-services.sh && \
     chmod +x /usr/local/bin/on-start.sh /app/start-services.sh
 
-# Create necessary directories and set permissions
-RUN mkdir -p /var/log/solang-playground && \
-    chmod -R 755 /var/log/solang-playground
-
 EXPOSE 4444 3000
-
-# Health check (optional but recommended)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
-
 ENTRYPOINT ["/usr/local/bin/on-start.sh"]
