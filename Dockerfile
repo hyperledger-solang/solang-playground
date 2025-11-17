@@ -43,6 +43,12 @@ RUN . $NVM_DIR/nvm.sh && nvm use $NODE_VERSION && \
     (cd packages/frontend && npm run build) && \
     cargo make build-bindings
 
+# Prune devDependencies from frontend node_modules so the copied node_modules
+# used at runtime only contains production dependencies (reduces final image size)
+RUN . $NVM_DIR/nvm.sh && nvm use $NODE_VERSION && \
+    cd packages/frontend && \
+    npm prune --production || true
+
 
 # Stage 2: Final runtime image
 FROM nestybox/ubuntu-jammy-systemd-docker:latest
@@ -67,11 +73,9 @@ WORKDIR /app
 # Copy built backend artifact
 COPY --from=builder /app/target/release/backend ./target/release/
 
-# Copy frontend source and build artifacts (but NOT node_modules )
+# Copy frontend source and production-only node_modules and build artifacts
+# node_modules were pruned in the builder stage above
 COPY --from=builder /app/packages/frontend ./packages/frontend
-
-# *** FIX: Install production dependencies directly in the final image ***
-RUN cd /app/packages/frontend && npm install --production
 
 # Create symbolic link for the frontend distribution
 RUN mkdir -p /app/packages/app && \
