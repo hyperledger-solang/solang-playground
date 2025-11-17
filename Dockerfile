@@ -1,36 +1,41 @@
+# Stage 1: Builder image for compiling Rust and building the frontend
 FROM rust:1.86.0 as builder
 
-
-# Install build dependencies
+# Install build dependencies for backend and frontend
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     curl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install NVM
+# Install NVM (Node Version Manager)
 ENV NVM_DIR /usr/local/nvm
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Set up the shell environment for NVM
+SHELL ["/bin/bash", "-c"]
 
 # Set up Rust environment
 RUN rustup default stable && \
     rustup target add wasm32-unknown-unknown
 
-# Install Node.js
-ENV NODE_VERSION v20.14.0
+# Install Node.js using NVM
+ENV NODE_VERSION v20.17.0
 RUN . $NVM_DIR/nvm.sh && \
     nvm install $NODE_VERSION && \
     nvm use $NODE_VERSION
 
-# Install cargo-make
+# Install cargo-make for build automation
 RUN . $NVM_DIR/nvm.sh && \
     nvm use $NODE_VERSION && \
     cargo install cargo-make --locked
 
 WORKDIR /app
 
+# Copy all source code into the builder
 COPY . .
+
 # Install frontend dependencies
 RUN . $NVM_DIR/nvm.sh && \
     nvm use $NODE_VERSION && \
@@ -38,24 +43,20 @@ RUN . $NVM_DIR/nvm.sh && \
     npm install --include=dev && \
     npm ls @stellar/stellar-sdk
 
-# Build the application (with corrected paths)
-# Build the application
+# Build the entire application
 RUN . $NVM_DIR/nvm.sh && \
     nvm use $NODE_VERSION && \
     cargo make deps-wasm && \
     cargo make build-backend && \
     echo "Building frontend app..." && \
-    (cd packages/frontend && npm run build) && \
-    echo "Building frontend production bundle..." && \
-    (cd packages/frontend && npm run build) && \
+    (cd packages/frontend && npm run build ) && \
     cargo make build-bindings
 
 
 # Stage 2: Final runtime image
 FROM nestybox/ubuntu-jammy-systemd-docker:latest
 
-
-# Install runtime dependencies + packages required by NodeSource
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     curl \
@@ -65,29 +66,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js
+# Install Node.js using NodeSource
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get update && apt-get install -y nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy built artifacts from builder
+# Copy built backend artifact from the builder stage
 COPY --from=builder /app/target/release/backend ./target/release/
-COPY --from=builder /app/packages/frontend/.next ./packages/frontend/.next
+
+# Copy the entire frontend package, including the built assets
+COPY --from=builder /app/packages/frontend ./packages/frontend
+
+# *** FIX: Copy node_modules from the builder stage ***
 COPY --from=builder /app/packages/frontend/node_modules ./packages/frontend/node_modules
 
-# Create symbolic link for frontend dist
+# Create a symbolic link for the frontend distribution
+# This makes the path consistent if other services expect a 'dist' folder
 RUN mkdir -p /app/packages/app && \
     ln -s /app/packages/frontend/.next /app/packages/app/dist
 
-# Copy scripts
+# Copy entrypoint and service start scripts
 COPY sysbox/on-start.sh /usr/local/bin/on-start.sh
 COPY start-services.sh /app/start-services.sh
 
-# Fix permissions and line endings
+# Fix line endings (dos2unix ) and make scripts executable
 RUN dos2unix /usr/local/bin/on-start.sh /app/start-services.sh && \
     chmod +x /usr/local/bin/on-start.sh /app/start-services.sh
 
+# Expose the ports for the backend and frontend services
 EXPOSE 4444 3000
+
+# Set the entrypoint to the startup script
 ENTRYPOINT ["/usr/local/bin/on-start.sh"]
