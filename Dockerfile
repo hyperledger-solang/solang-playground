@@ -1,55 +1,46 @@
 # Stage 1: Builder image for compiling Rust and building the frontend
 FROM rust:1.86.0 as builder
 
-# Install build dependencies for backend and frontend
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
-    curl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    curl
 
-# Install NVM (Node Version Manager)
+# Install NVM and Node.js
 ENV NVM_DIR /usr/local/nvm
+ENV NODE_VERSION v20.17.0
 RUN mkdir -p $NVM_DIR && \
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
+    . $NVM_DIR/nvm.sh && \
+    nvm install $NODE_VERSION && \
+    nvm use $NODE_VERSION
 
-# Set up the shell environment for NVM
+# Set up the shell environment for subsequent RUN commands
 SHELL ["/bin/bash", "-c"]
 
 # Set up Rust environment
 RUN rustup default stable && \
     rustup target add wasm32-unknown-unknown
 
-# Install Node.js using NVM
-ENV NODE_VERSION v20.17.0
-RUN . $NVM_DIR/nvm.sh && \
-    nvm install $NODE_VERSION && \
-    nvm use $NODE_VERSION
-
 # Install cargo-make for build automation
-RUN . $NVM_DIR/nvm.sh && \
-    nvm use $NODE_VERSION && \
-    cargo install cargo-make --locked
+RUN . $NVM_DIR/nvm.sh && nvm use $NODE_VERSION && cargo install cargo-make --locked
 
 WORKDIR /app
 
-# Copy all source code into the builder
+# Copy source code
 COPY . .
 
-# Install frontend dependencies
-RUN . $NVM_DIR/nvm.sh && \
-    nvm use $NODE_VERSION && \
+# Install ALL frontend dependencies (including devDependencies for the build )
+RUN . $NVM_DIR/nvm.sh && nvm use $NODE_VERSION && \
     cd packages/frontend && \
-    npm install --include=dev && \
-    npm ls @stellar/stellar-sdk
+    npm install --include=dev
 
 # Build the entire application
-RUN . $NVM_DIR/nvm.sh && \
-    nvm use $NODE_VERSION && \
+RUN . $NVM_DIR/nvm.sh && nvm use $NODE_VERSION && \
     cargo make deps-wasm && \
     cargo make build-backend && \
-    echo "Building frontend app..." && \
-    (cd packages/frontend && npm run build ) && \
+    (cd packages/frontend && npm run build) && \
     cargo make build-bindings
 
 
@@ -73,30 +64,24 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 WORKDIR /app
 
-# Copy built backend artifact from the builder stage
+# Copy built backend artifact
 COPY --from=builder /app/target/release/backend ./target/release/
 
-# Copy the entire frontend package, including the built assets
+# Copy frontend source and build artifacts (but NOT node_modules )
 COPY --from=builder /app/packages/frontend ./packages/frontend
 
-# *** FIX: Copy node_modules from the builder stage ***
-COPY --from=builder /app/packages/frontend/node_modules ./packages/frontend/node_modules
+# *** FIX: Install production dependencies directly in the final image ***
+RUN cd /app/packages/frontend && npm install --production
 
-# Create a symbolic link for the frontend distribution
-# This makes the path consistent if other services expect a 'dist' folder
+# Create symbolic link for the frontend distribution
 RUN mkdir -p /app/packages/app && \
     ln -s /app/packages/frontend/.next /app/packages/app/dist
 
-# Copy entrypoint and service start scripts
+# Copy and prepare scripts
 COPY sysbox/on-start.sh /usr/local/bin/on-start.sh
 COPY start-services.sh /app/start-services.sh
-
-# Fix line endings (dos2unix ) and make scripts executable
 RUN dos2unix /usr/local/bin/on-start.sh /app/start-services.sh && \
     chmod +x /usr/local/bin/on-start.sh /app/start-services.sh
 
-# Expose the ports for the backend and frontend services
 EXPOSE 4444 3000
-
-# Set the entrypoint to the startup script
 ENTRYPOINT ["/usr/local/bin/on-start.sh"]
