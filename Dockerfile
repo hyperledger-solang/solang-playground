@@ -1,15 +1,16 @@
 # Stage 1: Builder image for compiling Rust and building the frontend
-FROM rust:1.86.0 as builder
+FROM rust:1.86.0 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
-    curl
+    curl \
+    ca-certificates
 
 # Install NVM and Node.js
-ENV NVM_DIR /usr/local/nvm
-ENV NODE_VERSION v20.17.0
+ENV NVM_DIR=/usr/local/nvm
+ENV NODE_VERSION=v20.17.0
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     . $NVM_DIR/nvm.sh && \
