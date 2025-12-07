@@ -41,13 +41,55 @@ function Editor() {
           scrollBeyondLastLine: false,
           automaticLayout: true,
           theme: "vs-dark",
-          padding: { top: 0, bottom: 0 },
+          padding: { top: 10, bottom: 10 },
           renderWhitespace: 'none',
           wordWrap: 'off',
           selectOnLineNumbers: true,
           roundedSelection: false,
           readOnly: false,
-          cursorStyle: 'line'
+          cursorStyle: 'line',
+          // Enhanced editing experience
+          tabSize: 4,
+          insertSpaces: true,
+          autoIndent: 'full',
+          formatOnPaste: true,
+          formatOnType: true,
+          // Bracket matching
+          matchBrackets: 'always',
+          bracketPairColorization: { enabled: true },
+          // Auto-closing
+          autoClosingBrackets: 'always',
+          autoClosingQuotes: 'always',
+          autoSurround: 'languageDefined',
+          // Suggestions
+          quickSuggestions: {
+            other: true,
+            comments: false,
+            strings: false
+          },
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: 'on',
+          tabCompletion: 'on',
+          wordBasedSuggestions: 'currentDocument',
+          // Code folding
+          folding: true,
+          foldingStrategy: 'auto',
+          showFoldingControls: 'mouseover',
+          // Line numbers and guides
+          lineNumbers: 'on',
+          renderLineHighlight: 'all',
+          guides: {
+            bracketPairs: true,
+            indentation: true
+          },
+          // Smooth scrolling
+          smoothScrolling: true,
+          cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: 'on',
+          // Parameter hints
+          parameterHints: { enabled: true },
+          // Hover
+          hover: { enabled: true, delay: 300 }
         }}
       />
     </div>

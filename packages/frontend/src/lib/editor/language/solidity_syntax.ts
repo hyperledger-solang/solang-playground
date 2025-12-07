@@ -15,7 +15,51 @@ export const solidityLanguageConfig = {
         { open: "'", close: "'", notIn: ['string', 'comment'] },
         { open: '{', close: '}', notIn: ['string', 'comment'] },
         { open: '[', close: ']', notIn: ['string', 'comment'] },
-        { open: '(', close: ')', notIn: ['string', 'comment'] }
+        { open: '(', close: ')', notIn: ['string', 'comment'] },
+        { open: '/**', close: ' */', notIn: ['string'] }
+    ],
+    surroundingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: "'", close: "'" },
+        { open: '<', close: '>' }
+    ],
+    folding: {
+        markers: {
+            start: /^\s*\/\/\s*#?region\b/,
+            end: /^\s*\/\/\s*#?endregion\b/
+        }
+    },
+    wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+    indentationRules: {
+        increaseIndentPattern: /^((?!\/\/).)*(\{[^}"'`]*|\([^)"'`]*|\[[^\]"'`]*)$/,
+        decreaseIndentPattern: /^((?!.*?\/\*).*\*\/)?\s*[\}\]].*$/
+    },
+    onEnterRules: [
+        {
+            // After opening brace
+            beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+            afterText: /^\s*\*\/$/,
+            action: { indentAction: 2, appendText: ' * ' } // IndentAction.IndentOutdent = 2
+        },
+        {
+            // Continue doc comment
+            beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+            action: { indentAction: 0, appendText: ' * ' } // IndentAction.None = 0
+        },
+        {
+            // Continue line comment in doc block
+            beforeText: /^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!\/))*)?$/,
+            action: { indentAction: 0, appendText: '* ' }
+        },
+        {
+            // After opening brace, increase indent
+            beforeText: /^.*\{[^}"']*$/,
+            afterText: /^[^{]*\}.*$/,
+            action: { indentAction: 2 } // IndentOutdent
+        }
     ]
 }
 
@@ -30,7 +74,82 @@ export const solidityTokensProvider = {
         { token: 'delimiter.angle', open: '<', close: '>' }
     ],
 
+    // Solidity types (will be colored differently)
+    typeKeywords: [
+        'address',
+        'string',
+        'bool',
+        'byte',
+        'bytes',
+        // All int types
+        'int', 'int8', 'int16', 'int24', 'int32', 'int40', 'int48', 'int56', 'int64',
+        'int72', 'int80', 'int88', 'int96', 'int104', 'int112', 'int120', 'int128',
+        'int136', 'int144', 'int152', 'int160', 'int168', 'int176', 'int184', 'int192',
+        'int200', 'int208', 'int216', 'int224', 'int232', 'int240', 'int248', 'int256',
+        // All uint types
+        'uint', 'uint8', 'uint16', 'uint24', 'uint32', 'uint40', 'uint48', 'uint56', 'uint64',
+        'uint72', 'uint80', 'uint88', 'uint96', 'uint104', 'uint112', 'uint120', 'uint128',
+        'uint136', 'uint144', 'uint152', 'uint160', 'uint168', 'uint176', 'uint184', 'uint192',
+        'uint200', 'uint208', 'uint216', 'uint224', 'uint232', 'uint240', 'uint248', 'uint256',
+        // Bytes types
+        'bytes1', 'bytes2', 'bytes3', 'bytes4', 'bytes5', 'bytes6', 'bytes7', 'bytes8',
+        'bytes9', 'bytes10', 'bytes11', 'bytes12', 'bytes13', 'bytes14', 'bytes15', 'bytes16',
+        'bytes17', 'bytes18', 'bytes19', 'bytes20', 'bytes21', 'bytes22', 'bytes23', 'bytes24',
+        'bytes25', 'bytes26', 'bytes27', 'bytes28', 'bytes29', 'bytes30', 'bytes31', 'bytes32',
+        // Fixed types (simplified)
+        'fixed', 'ufixed',
+    ],
+
+    // Control flow keywords
+    controlKeywords: [
+        'if', 'else', 'for', 'while', 'do', 'break', 'continue', 'return', 'returns',
+        'try', 'catch', 'throw', 'revert', 'assert', 'require'
+    ],
+
+    // Definition keywords
+    definitionKeywords: [
+        'contract', 'library', 'interface', 'abstract',
+        'function', 'modifier', 'constructor', 'fallback', 'receive',
+        'struct', 'enum', 'event', 'error', 'mapping'
+    ],
+
+    // Visibility and modifiers
+    visibilityKeywords: [
+        'public', 'private', 'internal', 'external',
+        'view', 'pure', 'payable', 'nonpayable',
+        'virtual', 'override', 'immutable', 'constant', 'indexed', 'anonymous'
+    ],
+
+    // Storage keywords
+    storageKeywords: [
+        'memory', 'storage', 'calldata'
+    ],
+
+    // Other keywords
     keywords: [
+        'pragma', 'solidity', 'import', 'using', 'as', 'is',
+        'new', 'delete', 'emit', 'assembly', 'let', 'var',
+        'true', 'false', 'wei', 'gwei', 'ether', 'seconds', 'minutes', 'hours', 'days', 'weeks',
+        'this', 'super', 'selfdestruct', 'suicide',
+        'block', 'msg', 'tx', 'abi', 'type', 'gasleft',
+        'keccak256', 'sha256', 'ripemd160', 'ecrecover', 'addmod', 'mulmod', 'blockhash'
+    ],
+
+    // Constants
+    constants: [
+        'true', 'false', 'wei', 'gwei', 'ether',
+        'seconds', 'minutes', 'hours', 'days', 'weeks'
+    ],
+
+    // Built-in objects
+    builtins: [
+        'block', 'msg', 'tx', 'abi', 'type', 'gasleft',
+        'keccak256', 'sha256', 'ripemd160', 'ecrecover', 'addmod', 'mulmod', 'blockhash',
+        'selfdestruct', 'assert', 'require', 'revert'
+    ],
+
+    // LEGACY: Keep the big keywords list for backward compatibility but won't be used for types
+    legacyKeywords: [
         // Main keywords
         'pragma',
         'solidity',
@@ -1335,12 +1454,19 @@ export const solidityTokensProvider = {
     // The main tokenizer for our languages
     tokenizer: {
         root: [
-            // identifiers and keywords
+            // identifiers and keywords - order matters!
             [
                 /[a-zA-Z_]\w*/,
                 {
                     cases: {
-                        '@keywords': { token: 'keyword.$0' },
+                        '@typeKeywords': 'type',
+                        '@controlKeywords': 'keyword.control',
+                        '@definitionKeywords': 'keyword.definition',
+                        '@visibilityKeywords': 'keyword.visibility',
+                        '@storageKeywords': 'keyword.storage',
+                        '@constants': 'constant',
+                        '@builtins': 'variable.predefined',
+                        '@keywords': 'keyword',
                         '@default': 'identifier'
                     }
                 }
@@ -1349,14 +1475,14 @@ export const solidityTokensProvider = {
             // whitespace
             { include: '@whitespace' },
 
+            // NatSpec doc tags
+            [/@\w+/, 'annotation'],
+
             // [[ attributes ]].
             [/\[\[.*\]\]/, 'annotation'],
 
             // Preprocessor directive
             [/^\s*#\w+/, 'keyword'],
-
-            // DataTypes
-            [/int\d*/, 'keyword'],
 
             // delimiters and operators
             [/[{}()\[\]]/, '@brackets'],
@@ -1365,7 +1491,7 @@ export const solidityTokensProvider = {
                 /@symbols/,
                 {
                     cases: {
-                        '@operators': 'delimiter',
+                        '@operators': 'operator',
                         '@default': ''
                     }
                 }
@@ -1384,10 +1510,10 @@ export const solidityTokensProvider = {
             [/[;,.]/, 'delimiter'],
 
             // strings
-            [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
+            [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-terminated string
             [/"/, 'string', '@string'],
 
-            // characters
+            // characters/hex literals
             [/'[^\\']'/, 'string'],
             [/(')(@escapes)(')/, ['string', 'string.escape', 'string']],
             [/'/, 'string.invalid']
@@ -1397,6 +1523,7 @@ export const solidityTokensProvider = {
             [/[ \t\r\n]+/, ''],
             [/\/\*\*(?!\/)/, 'comment.doc', '@doccomment'],
             [/\/\*/, 'comment', '@comment'],
+            [/\/\/\/.*$/, 'comment.doc'], // NatSpec single line
             [/\/\/.*$/, 'comment']
         ],
 
@@ -1405,9 +1532,10 @@ export const solidityTokensProvider = {
             [/\*\//, 'comment', '@pop'],
             [/[\/*]/, 'comment']
         ],
-        // Identical copy of comment above, except for the addition of .doc
+        
         doccomment: [
-            [/[^\/*]+/, 'comment.doc'],
+            [/@\w+/, 'comment.doc.tag'], // NatSpec tags like @param, @return
+            [/[^\/*@]+/, 'comment.doc'],
             [/\*\//, 'comment.doc', '@pop'],
             [/[\/*]/, 'comment.doc']
         ],
