@@ -10,6 +10,29 @@ export interface ICompilationResult {
     err: null | string
 }
 
+/**
+ * Extract just the filename from a state path like "explorer.items.src.items['main.sol']"
+ */
+function extractFilename(statePath: string): string {
+    const match = statePath.match(/\['([^']+)'\]$/);
+    return match ? match[1] : statePath;
+}
+
+/**
+ * Build a map of all .sol files in the workspace
+ * Returns { filename: content } for all files
+ */
+function getAllSolFiles(files: Record<string, string>): Record<string, string> {
+    const solFiles: Record<string, string> = {};
+    for (const [path, content] of Object.entries(files)) {
+        if (path.includes('.sol')) {
+            const filename = extractFilename(path);
+            solFiles[filename] = content;
+        }
+    }
+    return solFiles;
+}
+
 function useCompile() {
     const code = useFileContent();
     const selected = useSelector(store, (state) => state.context.currentFile);
@@ -22,8 +45,9 @@ function useCompile() {
             const state = store.getSnapshot().context;
             const path = targetFilePath || selected || '';
             const codeToCompile = path ? state.files[path] : code;
+            const mainFileName = extractFilename(path);
 
-            console.log('[tur] [compileFile] path:', path)
+            console.log('[compileFile] path:', path, 'mainFile:', mainFileName);
             if (!codeToCompile) {
                 const err = "Error: No Source Code Found"
                 logger.error(err);
@@ -32,6 +56,10 @@ function useCompile() {
                     err
                 }
             }
+
+            // Get all .sol files for import resolution
+            const allFiles = getAllSolFiles(state.files);
+            console.log('[compileFile] Sending', Object.keys(allFiles).length, 'files for compilation');
 
             logger.info("Compiling contract...");
 
@@ -42,6 +70,8 @@ function useCompile() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     source: codeToCompile,
+                    main_file: mainFileName,
+                    files: allFiles,
                 }),
             };
 

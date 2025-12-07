@@ -12,6 +12,16 @@ import { editor } from "monaco-editor-core";
 import Language from "./language";
 import { monacoToProtocol } from "./utils";
 
+// Convert a state file path to a URI that the LSP understands
+// Monaco creates file:// URIs from paths, so we need to match that format
+function filePathToUri(filePath: string): string {
+  // Extract just the filename from paths like "explorer.items.src.items['main.sol']"
+  const match = filePath.match(/\['([^']+)'\]$/);
+  const filename = match ? match[1] : filePath;
+  // Use the same URI format that Monaco creates: file:///workspace/filename.sol
+  return `file:///workspace/${filename}`;
+}
+
 export class EditorService {
   // Track document versions per URI
   #documentVersions: Map<string, number> = new Map();
@@ -53,7 +63,6 @@ export class EditorService {
     
     // Don't send didOpen if already open
     if (this.#openDocuments.has(uri)) {
-      console.log(`Document ${uri} is already open, skipping didOpen`);
       return;
     }
 
@@ -70,7 +79,6 @@ export class EditorService {
       },
     };
 
-    console.log(`Sending didOpen for ${uri}`);
     this.client.notify(DidOpenTextDocumentNotification.type.method, params);
   }
 
@@ -80,7 +88,6 @@ export class EditorService {
   public fileClosed(uri: string): void {
     // Don't send didClose if not open
     if (!this.#openDocuments.has(uri)) {
-      console.log(`Document ${uri} is not open, skipping didClose`);
       return;
     }
 
@@ -92,7 +99,6 @@ export class EditorService {
       },
     };
 
-    console.log(`Sending didClose for ${uri}`);
     this.client.notify(DidCloseTextDocumentNotification.type.method, params);
     
     // Clear diagnostics for closed document
@@ -108,7 +114,6 @@ export class EditorService {
 
     // If document isn't open yet, open it first
     if (!this.#openDocuments.has(uri)) {
-      console.log(`Document ${uri} not open, opening before change notification`);
       this.fileOpened(model);
       return; // fileOpened already sends the content
     }
@@ -132,22 +137,92 @@ export class EditorService {
       ],
     };
 
-    console.log(`Sending didChange for ${uri} (version ${version})`);
     this.client.notify(DidChangeTextDocumentNotification.type.method, params);
   }
 
   /**
    * Handle switching from one file to another
-   * This ensures proper lifecycle notifications are sent
+   * Keep both files open in the LSP for import resolution
    */
   public switchFile(oldModel: editor.ITextModel | null, newModel: editor.ITextModel): void {
-    // Close the old document if it exists
-    if (oldModel) {
-      const oldUri = oldModel.uri.toString();
-      this.fileClosed(oldUri);
+    // Don't close the old document - keep it open for import resolution
+    // Just open the new document if not already open
+    this.fileOpened(newModel);
+  }
+
+  /**
+   * Open a file by path and content (for workspace sync)
+   * This allows opening files that don't have a Monaco model yet
+   */
+  public openFileByPath(filePath: string, content: string, languageId: string = "solidity"): void {
+    const uri = filePathToUri(filePath);
+    
+    // Don't send didOpen if already open
+    if (this.#openDocuments.has(uri)) {
+      return;
     }
 
-    // Open the new document
-    this.fileOpened(newModel);
+    // Reset version for newly opened documents
+    this.#documentVersions.set(uri, 1);
+    this.#openDocuments.add(uri);
+
+    const params: DidOpenTextDocumentParams = {
+      textDocument: {
+        uri: uri,
+        languageId: languageId,
+        version: 1,
+        text: content,
+      },
+    };
+
+    this.client.notify(DidOpenTextDocumentNotification.type.method, params);
+  }
+
+  /**
+   * Update file content by path (for files without Monaco model)
+   */
+  public updateFileByPath(filePath: string, content: string): void {
+    const uri = filePathToUri(filePath);
+
+    // If document isn't open yet, open it first
+    if (!this.#openDocuments.has(uri)) {
+      this.openFileByPath(filePath, content);
+      return;
+    }
+
+    const version = this.getNextVersion(uri);
+
+    const params: DidChangeTextDocumentParams = {
+      textDocument: {
+        uri: uri,
+        version: version,
+      },
+      contentChanges: [
+        {
+          text: content,
+        },
+      ],
+    };
+
+    this.client.notify(DidChangeTextDocumentNotification.type.method, params);
+  }
+
+  /**
+   * Open all workspace files in the LSP
+   * Call this after LSP initialization to enable import resolution
+   */
+  public openWorkspaceFiles(files: Record<string, string>): void {
+    const solFiles = Object.entries(files).filter(([path]) => path.includes(".sol"));
+    
+    for (const [filePath, content] of solFiles) {
+      this.openFileByPath(filePath, content);
+    }
+  }
+
+  /**
+   * Get the list of open document URIs
+   */
+  public getOpenDocuments(): string[] {
+    return Array.from(this.#openDocuments);
   }
 }

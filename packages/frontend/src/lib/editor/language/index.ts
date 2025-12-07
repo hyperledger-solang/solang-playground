@@ -5,8 +5,28 @@ import * as proto from "vscode-languageserver-protocol";
 import { Monaco } from "@monaco-editor/react";
 import Client from "../client";
 import { monacoToProtocol, protocolToMonaco } from "../utils";
+import { store } from "@/state";
 
 const THEME_NAME = "solidity-dark";
+
+// Extract filename from LSP URI like file:///workspace/utils.sol -> utils.sol
+function extractFilenameFromUri(uri: string): string {
+  return uri.replace('file:///workspace/', '');
+}
+
+// Find the state path for a given filename by searching through workspace files
+function findFilePathInWorkspace(filename: string): string | null {
+  const state = store.getSnapshot();
+  const files = state.context.files;
+  
+  for (const path of Object.keys(files)) {
+    // Path format: explorer.items.src.items['main.sol']
+    if (path.endsWith(`['${filename}']`)) {
+      return path;
+    }
+  }
+  return null;
+}
 
 let language: null | Language;
 
@@ -45,6 +65,11 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
     monaco.languages.setMonarchTokensProvider("solidity", solidityTokensProvider as any);
     monaco.languages.setLanguageConfiguration("solidity", solidityLanguageConfig as any);
 
+    // LSP Completion Provider
+    // Note: Member completions for imported libraries (e.g., MathUtils.add after typing "MathUtils.")
+    // is a known limitation of the Solang WASM LSP. The LSP may not return member completions
+    // for symbols defined in other files. This would require changes to the upstream Solang
+    // compiler's LSP implementation at https://github.com/hyperledger/solang
     monaco.languages.registerCompletionItemProvider(this.id, {
       triggerCharacters: ['.', '(', ',', ' '],
       async provideCompletionItems(model, position, context, token): Promise<monaco.languages.CompletionList> {
@@ -72,7 +97,7 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
       },
     });
 
-    // Go to Definition
+    // Go to Definition with cross-file navigation support
     monaco.languages.registerDefinitionProvider(this.id, {
       async provideDefinition(model, position, token): Promise<monaco.languages.Definition | null> {
         void token;
@@ -85,15 +110,35 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
           if (!response) return null;
 
           const locations = Array.isArray(response) ? response : [response];
-          return locations.map(loc => ({
-            uri: monaco.Uri.parse(loc.uri),
-            range: {
-              startLineNumber: loc.range.start.line + 1,
-              startColumn: loc.range.start.character + 1,
-              endLineNumber: loc.range.end.line + 1,
-              endColumn: loc.range.end.character + 1,
+          const currentUri = model.uri.toString();
+          
+          // Process each location
+          return locations.map(loc => {
+            const targetUri = loc.uri;
+            
+            // Check if we need to navigate to a different file
+            if (targetUri !== currentUri) {
+              const filename = extractFilenameFromUri(targetUri);
+              const workspacePath = findFilePathInWorkspace(filename);
+              
+              if (workspacePath) {
+                // Schedule file switch - use setTimeout to avoid blocking the definition response
+                setTimeout(() => {
+                  store.send({ type: "setCurrentPath", path: workspacePath });
+                }, 10);
+              }
             }
-          }));
+            
+            return {
+              uri: monaco.Uri.parse(loc.uri),
+              range: {
+                startLineNumber: loc.range.start.line + 1,
+                startColumn: loc.range.start.character + 1,
+                endLineNumber: loc.range.end.line + 1,
+                endColumn: loc.range.end.character + 1,
+              }
+            };
+          });
         } catch (error) {
           console.log("Definition error:", error);
           return null;
@@ -168,6 +213,64 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
           console.log("SignatureHelp error:", error);
           return null;
         }
+      }
+    });
+
+    // Import Path Completion Provider
+    // Suggests files from workspace when typing import paths like import "./ut"
+    monaco.languages.registerCompletionItemProvider(this.id, {
+      triggerCharacters: ['"', "'", '/', '.'],
+      provideCompletionItems: (model, position) => {
+        const lineContent = model.getLineContent(position.lineNumber);
+        const textUntilPosition = lineContent.substring(0, position.column - 1);
+        
+        // Check if we're inside an import statement string
+        const importMatch = textUntilPosition.match(/import\s+["']([^"']*)$/);
+        if (!importMatch) {
+          return { suggestions: [] };
+        }
+        
+        const partialPath = importMatch[1]; // e.g., "./ut" or "ut"
+        
+        // Get all .sol files from the workspace
+        const state = store.getSnapshot();
+        const files = state.context.files;
+        const solFiles: string[] = [];
+        
+        for (const path of Object.keys(files)) {
+          // Extract filename from path like explorer.items.src.items['main.sol']
+          const match = path.match(/\['([^']+\.sol)'\]$/);
+          if (match) {
+            solFiles.push(match[1]);
+          }
+        }
+        
+        // Filter files that match the partial path
+        const searchTerm = partialPath.replace(/^\.\//, '').toLowerCase();
+        const matchingFiles = solFiles.filter(file => 
+          file.toLowerCase().includes(searchTerm)
+        );
+        
+        // Calculate the range to replace (the partial path)
+        const startColumn = position.column - partialPath.length;
+        const range = {
+          startLineNumber: position.lineNumber,
+          startColumn: startColumn,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        };
+        
+        // Create completion items
+        const suggestions: monaco.languages.CompletionItem[] = matchingFiles.map(file => ({
+          label: file,
+          kind: monaco.languages.CompletionItemKind.File,
+          insertText: `./${file}`,
+          documentation: `Import ${file}`,
+          range,
+          sortText: '0' + file, // Sort files first
+        }));
+        
+        return { suggestions };
       }
     });
 

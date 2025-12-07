@@ -22,6 +22,8 @@ let currentEditor: monaco.editor.IStandaloneCodeEditor | null = null;
 let currentModel: monaco.editor.ITextModel | null = null;
 let contentChangeDisposable: monaco.IDisposable | null = null;
 let diagnosticUnsubscribe: (() => void) | null = null;
+let previousFileKeys: Set<string> = new Set();
+let isLspInitialized = false;
 
 export async function init(monaco: Monaco) {
   store.send({ type: "setMonaco", monaco });
@@ -52,7 +54,6 @@ function setupDiagnosticSubscription(model: monaco.editor.ITextModel, monaco: Mo
   diagnosticUnsubscribe = client.onDiagnosticsUpdate((uri, diagnostics) => {
     // Only update markers if the diagnostics are for the current model
     if (uri === modelUri) {
-      console.log(`Received diagnostics for current model ${uri}:`, diagnostics);
       const markers = protocolToMonaco.asDiagnostics(diagnostics);
       monaco.editor.setModelMarkers(model, "solidity", markers);
     }
@@ -98,8 +99,6 @@ function handleModelChange(editor: monaco.editor.IStandaloneCodeEditor, monaco: 
   const oldModel = currentModel;
   currentModel = newModel;
 
-  console.log(`Model changed: ${oldModel?.uri.toString() ?? "null"} -> ${newModel.uri.toString()}`);
-
   // Notify the LSP about the file switch
   if (oldModel && oldModel !== newModel) {
     editorService.switchFile(oldModel, newModel);
@@ -111,6 +110,14 @@ function handleModelChange(editor: monaco.editor.IStandaloneCodeEditor, monaco: 
   // Set up handlers for the new model
   setupContentChangeHandler(newModel, monaco);
   setupDiagnosticSubscription(newModel, monaco);
+  
+  // Force re-parse when switching files to restore diagnostics
+  // This ensures errors are shown even when returning to a previously viewed file
+  if (isLspInitialized && oldModel !== newModel) {
+    setTimeout(() => {
+      editorService.fileChanged(newModel);
+    }, 50);
+  }
 }
 
 export async function mountService(editor: monaco.editor.IStandaloneCodeEditor, monaco: Monaco) {
@@ -120,10 +127,44 @@ export async function mountService(editor: monaco.editor.IStandaloneCodeEditor, 
 
   // Register the initial file open as an after-init hook
   client.pushAfterInitializeHook(async () => {
+    // First, open ALL workspace files so the LSP knows about them for imports
+    const state = store.getSnapshot();
+    const files = state.context.files;
+    editorService.openWorkspaceFiles(files);
+    
+    // Track which files exist for detecting new ones
+    previousFileKeys = new Set(Object.keys(files));
+    isLspInitialized = true;
+    
+    // Open the current file - this triggers initial parsing with all imports available
     editorService.fileOpened(model);
+    
+    // Force a re-parse by sending a "change" notification with the same content
+    // This ensures the LSP re-analyzes the file now that all imports are loaded
+    setTimeout(() => {
+      editorService.fileChanged(model);
+    }, 100);
     
     // Set up diagnostic subscription after initialization
     setupDiagnosticSubscription(model, monaco);
+    
+    // Subscribe to state changes to detect new files
+    store.subscribe((state) => {
+      if (!isLspInitialized) return;
+      
+      const currentFiles = state.context.files;
+      const currentKeys = new Set(Object.keys(currentFiles));
+      
+      // Find newly added files
+      for (const key of currentKeys) {
+        if (!previousFileKeys.has(key) && key.includes(".sol")) {
+          editorService.openFileByPath(key, currentFiles[key]);
+        }
+      }
+      
+      // Update tracking
+      previousFileKeys = currentKeys;
+    });
   });
 
   // Set up content change handler
@@ -164,4 +205,25 @@ export function getCurrentModel(): monaco.editor.ITextModel | null {
  */
 export function getClient(): Client {
   return client;
+}
+
+/**
+ * Get the editor service (for workspace file management)
+ */
+export function getEditorService(): EditorService {
+  return editorService;
+}
+
+/**
+ * Notify the LSP that a new file was created in the workspace
+ */
+export function notifyFileCreated(filePath: string, content: string): void {
+  editorService.openFileByPath(filePath, content);
+}
+
+/**
+ * Notify the LSP that a file's content changed (for non-active files)
+ */
+export function notifyFileChanged(filePath: string, content: string): void {
+  editorService.updateFileByPath(filePath, content);
 }
