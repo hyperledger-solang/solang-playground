@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import * as vsrpc from "vscode-jsonrpc";
 
 import Bytes from "./bytes";
@@ -27,7 +25,11 @@ export default class StreamDemuxer extends Queue<Uint8Array> {
     for await (const bytes of this) {
       console.log("bytes", bytes);
 
-      buffer = Bytes.append(Uint8Array, buffer, bytes);
+      // Append bytes to buffer
+      const newBuffer = new Uint8Array(buffer.length + bytes.length);
+      newBuffer.set(buffer);
+      newBuffer.set(bytes, buffer.length);
+      buffer = newBuffer;
 
       // check if the content length is known
       if (null == contentLength) {

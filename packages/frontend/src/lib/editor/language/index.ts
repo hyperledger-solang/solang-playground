@@ -229,8 +229,7 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
           } as proto.HoverParams) as Promise<proto.Hover>);
           console.log(response);
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          const result: monaco.languages.Hover = protocolToMonaco.asHover(response);
+          const result = protocolToMonaco.asHover(response);
 
           console.log("Hover result: ", result);
 
@@ -253,7 +252,7 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
           // Apply the decoration to the editor
           model.deltaDecorations([], [decoration]);
 
-          return result;
+          return result ?? null;
         } catch (error) {
           // LSP error - return null (no hover)
           console.log("Hover error:", error);
