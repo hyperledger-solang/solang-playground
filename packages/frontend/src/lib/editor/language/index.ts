@@ -81,22 +81,28 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
     monaco.languages.registerCompletionItemProvider(this.id, {
       async provideCompletionItems(model, position, context, token): Promise<monaco.languages.CompletionList> {
         void token;
-        const response = await (client.request(proto.CompletionRequest.type.method, {
-          textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
-          position: monacoToProtocol.asPosition(position.column, position.lineNumber),
-          context: monacoToProtocol.asCompletionContext(context),
-        } as proto.CompletionParams) as Promise<proto.CompletionList>);
-        console.log(response);
+        try {
+          const response = await (client.request(proto.CompletionRequest.type.method, {
+            textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
+            position: monacoToProtocol.asPosition(position.column, position.lineNumber),
+            context: monacoToProtocol.asCompletionContext(context),
+          } as proto.CompletionParams) as Promise<proto.CompletionList>);
+          console.log(response);
 
-        const word = model.getWordUntilPosition(position);
-        const result: monaco.languages.CompletionList = protocolToMonaco.asCompletionResult(response, {
-          startLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endLineNumber: position.lineNumber,
-          endColumn: word.endColumn,
-        });
+          const word = model.getWordUntilPosition(position);
+          const result: monaco.languages.CompletionList = protocolToMonaco.asCompletionResult(response, {
+            startLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endLineNumber: position.lineNumber,
+            endColumn: word.endColumn,
+          });
 
-        return result;
+          return result;
+        } catch (error) {
+          // LSP error - return empty completion list
+          console.log("Completion error:", error);
+          return { suggestions: [] };
+        }
       },
     });
 
@@ -191,69 +197,74 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
       // eslint-disable-next-line
       async provideDocumentSymbols(model, token): Promise<monaco.languages.DocumentSymbol[]> {
         void token;
-        const response = await (client.request(proto.DocumentSymbolRequest.type.method, {
-          textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
-        } as proto.DocumentSymbolParams) as Promise<proto.SymbolInformation[]>);
+        try {
+          const response = await (client.request(proto.DocumentSymbolRequest.type.method, {
+            textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
+          } as proto.DocumentSymbolParams) as Promise<proto.SymbolInformation[]>);
 
-        console.log({ response });
+          console.log({ response });
 
-        const uri = model.uri;
+          const uri = model.uri;
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const result: monaco.languages.DocumentSymbol[] = protocolToMonaco.asSymbolInformations(response, uri);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          const result: monaco.languages.DocumentSymbol[] = protocolToMonaco.asSymbolInformations(response, uri);
 
-        return result;
+          return result;
+        } catch (error) {
+          // Method not supported by the LSP server - return empty array
+          console.log("DocumentSymbol not supported by LSP server");
+          return [];
+        }
       },
     });
 
     monaco.languages.registerHoverProvider(this.id, {
       // eslint-disable-next-line
-      async provideHover(model, position, token): Promise<monaco.languages.Hover> {
+      async provideHover(model, position, token): Promise<monaco.languages.Hover | null> {
         void token;
-        const response = await (client.request(proto.HoverRequest.type.method, {
-          textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
-          position: monacoToProtocol.asPosition(position.column, position.lineNumber),
-        } as proto.HoverParams) as Promise<proto.Hover>);
-        console.log(response);
+        try {
+          const response = await (client.request(proto.HoverRequest.type.method, {
+            textDocument: monacoToProtocol.asTextDocumentIdentifier(model),
+            position: monacoToProtocol.asPosition(position.column, position.lineNumber),
+          } as proto.HoverParams) as Promise<proto.Hover>);
+          console.log(response);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const result: monaco.languages.Hover = protocolToMonaco.asHover(response);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          const result: monaco.languages.Hover = protocolToMonaco.asHover(response);
 
-        console.log("Hover result: ", result);
+          console.log("Hover result: ", result);
 
-        // add handler if hover result is null
-        let message = "";
-        if (result == null) {
-          message = "";
-        } else {
-          message = result.contents[0].value;
+          // add handler if hover result is null
+          let message = "";
+          if (result == null) {
+            message = "";
+          } else {
+            message = result.contents[0].value;
+          }
+
+          // Create a decoration with the hover result
+          const decoration: monaco.editor.IModelDeltaDecoration = {
+            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+            options: {
+              hoverMessage: { value: message },
+            },
+          };
+
+          // Apply the decoration to the editor
+          model.deltaDecorations([], [decoration]);
+
+          return result;
+        } catch (error) {
+          // LSP error - return null (no hover)
+          console.log("Hover error:", error);
+          return null;
         }
-
-        // Create a decoration with the hover result
-        const decoration: monaco.editor.IModelDeltaDecoration = {
-          range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-          options: {
-            hoverMessage: { value: message },
-          },
-        };
-
-        // Apply the decoration to the editor
-        model.deltaDecorations([], [decoration]);
-
-        return result;
       },
     });
 
-    monaco.editor.onDidCreateModel((model) => {
-      setTimeout(() => {
-        console.log("content changed", event);
-        const diagnostic = client.diagnostic;
-
-        const markers = protocolToMonaco.asDiagnostics(diagnostic.diagnostics);
-
-        monaco.editor.setModelMarkers(model, "solidity", markers);
-      }, 500);
-    });
+    // NOTE: Diagnostic handling is now done in the editor index.ts via subscription
+    // to diagnostic updates. This ensures diagnostics are properly scoped to the
+    // correct file and updated in real-time when the LSP server responds.
   }
 
   static initialize(client: Client, monaco: Monaco): Language {

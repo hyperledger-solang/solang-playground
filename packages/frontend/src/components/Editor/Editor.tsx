@@ -13,11 +13,21 @@ function Editor() {
   const theme = { dark: "vs-dark", light: "vs-light" }[resolvedTheme!] || resolvedTheme;
   const code = useFileContent();
   const { fontSize } = useSelector(store, (state) => state.context.preferences);
+  
+  // Get current file path for proper model management
+  const currentPath = useSelector(store, (state) => state.context.currentFile);
+  
+  // Create a stable path for Monaco's internal model management
+  // This ensures each file gets its own model with a unique URI
+  const modelPath = currentPath 
+    ? `inmemory://solang/${currentPath.replace(/[^a-zA-Z0-9]/g, '_')}.sol`
+    : 'inmemory://solang/default.sol';
 
   return (
     <div className="bg-[#0F0F23] h-full relative [&_.monaco-editor]:!bg-[#0F0F23] [&_.monaco-editor-background]:!bg-[#0F0F23] [&_.monaco-editor_.margin]:!bg-[#0F0F23] [&_.monaco-editor_.glyph-margin]:!bg-[#0F0F23] [&_.monaco-editor_.lines-content]:!bg-[#0F0F23]">
       <MonacoEditor
         value={code}
+        path={modelPath}
         beforeMount={init}
         onMount={mountService}
         height="calc(100vh - 243px)"
