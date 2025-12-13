@@ -99,3 +99,31 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           docker tag solang-pg ahmadsamehh/solang-pg:pr-$PR_NUMBER
           docker push ahmadsamehh/solang-pg:pr-$PR_NUMBER
+
+  deploy_after_build:
+    needs: build_and_test
+    runs-on: "ubuntu-latest"
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Fail immediately if any command fails
+          set -e
+          
+          # Move to project directory
+          cd /home/ubuntu
+          
+          echo "Pulling latest Docker images..."
+          docker compose -f solang-pg-analytics.yml pull
+          
+          echo "Starting containers with updated images..."
+          docker compose -f solang-pg-analytics.yml up -d
+          
+          echo "Cleaning up old unused Docker images..."
+          docker image prune -f
+          
+          echo "Deployment finished successfully!"
