@@ -7,13 +7,13 @@ import axios from "axios";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export async function getActivityOverTime() {
-  const data = await axios.get("/api/analytics/active-users-per-week");
+  const data = await axios.get("/api/analytics/active-users-per-day");
   return (data.data || []) as { date: string; users: number }[];
 }
 
 export function ActiveUsersChart() {
   const { data } = useQuery({
-    queryKey: ["active-users-per-week"],
+    queryKey: ["active-users-per-day"],
     queryFn: getActivityOverTime,
     initialData: [],
   });
