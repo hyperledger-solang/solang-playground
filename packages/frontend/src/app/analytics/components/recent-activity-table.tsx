@@ -1,12 +1,7 @@
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getAnalyticsUrl } from "@/lib/utils";
-import { truncateAddress } from "@/lib/web3";
-import { useState } from "react";
-import { Copy, Check } from "lucide-react";
 
 async function getRecentActivity() {
   const url = getAnalyticsUrl();
@@ -20,30 +15,6 @@ async function getRecentActivity() {
     timestamp: string;
     id: string;
   }[];
-}
-
-function CopyableCell({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div
-      className="group flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
-      onClick={handleCopy}
-    >
-      <span className="font-mono text-xs truncate">{truncateAddress(text)}</span>
-      {copied ? (
-        <Check className="h-3 w-3 text-green-500 flex-shrink-0" />
-      ) : (
-        <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-      )}
-    </div>
-  );
 }
 
 export async function RecentActivityTable() {
@@ -74,21 +45,23 @@ export async function RecentActivityTable() {
             <TableBody>
               {recentActivity.map((activity) => (
                 <TableRow key={activity.id} className="border-border hover:bg-primary/5 transition-colors">
-                  <TableCell className="text-foreground">
-                    <CopyableCell text={activity.wallet} />
+                  <TableCell className="font-mono text-xs text-foreground break-all">
+                    {activity.wallet}
                   </TableCell>
-                  <TableCell className="text-foreground">
-                    <CopyableCell text={activity.contract || ""} />
+                  <TableCell className="font-mono text-xs text-foreground break-all">
+                    {activity.contract || ""}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`${getActionBadgeColor(activity.action)} border-0 font-medium`}>
                       {activity.action}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <CopyableCell text={activity.hash || ""} />
+                  <TableCell className="font-mono text-xs text-muted-foreground break-all">
+                    {activity.hash || ""}
                   </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">{activity.timestamp}</TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                    {activity.timestamp}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
