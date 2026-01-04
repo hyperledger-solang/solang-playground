@@ -7,7 +7,7 @@ import { ActivityOverTimeType } from "src/libs/types";
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async recordDeployment({ wallet, address, name, txHash }: RecordDeployDto) {
     const contract = await this.prisma.contract.create({
@@ -77,7 +77,7 @@ export class AnalyticsService {
 
   async getRecentActivity() {
     const transactions = await this.prisma.transaction.findMany({
-      take: 10,
+      // take: 10,
       orderBy: { createdAt: "desc" },
       include: {
         user: true,
