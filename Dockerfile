@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
     gnupg \
     ca-certificates \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js using NodeSource
