@@ -77,7 +77,6 @@ export class AnalyticsService {
 
   async getRecentActivity() {
     const transactions = await this.prisma.transaction.findMany({
-      // take: 10,
       orderBy: { createdAt: "desc" },
       include: {
         user: true,
