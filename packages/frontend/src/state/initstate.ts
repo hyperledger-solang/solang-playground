@@ -1,20 +1,20 @@
-export const defaultCode = `contract flipper {
-  bool private value;
+export const defaultCode = `pragma solidity 0;
 
-  /// Constructor that initializes the \`bool\` value to the given \`init_value\`.
-  constructor(bool initvalue) {
+contract incrementer {
+  uint32 private value;
+
+  /// Constructor that initializes the int32 value to the given init_value.
+  constructor(uint32 initvalue) {
     value = initvalue;
   }
 
-  /// A message that can be called on instantiated contracts.
-  /// This one flips the value of the stored \`bool\` from \`true\`
-  /// to \`false\` and vice versa.
-  function flip() public {
-    value = !value;
+  /// This increments the value by by.
+  function inc(uint32 by) public {
+    value += by;
   }
 
-  /// Simply returns the current value of our \`bool\`.
-  function get() public view returns (bool) {
+  /// Simply returns the current value of our uint32.
+  function get() public view returns (uint32) {
     return value;
   }
 }

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use actix_web::{rt::task::spawn_blocking, web::Json, HttpResponse, Responder};
 use typescript_type_def::TypeDef;
@@ -8,8 +9,14 @@ use crate::services::sandbox::Sandbox;
 /// Request to compile a contract
 #[derive(Deserialize, Serialize, TypeDef, Debug, Clone)]
 pub struct CompilationRequest {
-    /// The source code of the contract
+    /// The source code of the main contract file
     pub source: String,
+    /// The name of the main file to compile (optional, defaults to "input.sol")
+    #[serde(default)]
+    pub main_file: Option<String>,
+    /// Additional files in the workspace (filename -> content)
+    #[serde(default)]
+    pub files: Option<HashMap<String, String>>,
 }
 
 /// Response from compiling a contract
@@ -48,6 +55,8 @@ pub async fn route_compile(req: Json<CompilationRequest>) -> impl Responder {
         let sandbox = Sandbox::new()?;
         sandbox.compile(&CompilationRequest {
             source: req.source.clone(),
+            main_file: req.main_file.clone(),
+            files: req.files.clone(),
         })
     })
     .await

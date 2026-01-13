@@ -14,6 +14,10 @@ import { scValToNative, xdr } from "@stellar/stellar-base";
 import Spinner from "./Spinner";
 import ContractService from "@/lib/services/server/contract";
 import { Network_Url } from "@/constants";
+import { safeStringify } from "@/utils";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
+import useWallet from "@/hooks/useWallet";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -22,7 +26,7 @@ function transformValue(type: string, value: any) {
     case "bool":
       return value ? "true" : "false";
     case "vec":
-      return typeof value === "string" ? value : JSON.stringify(value);
+      return typeof value === "string" ? value : safeStringify(value);
     default:
       return value;
   }
@@ -54,7 +58,7 @@ const defaultState = {
   result: { type: "", value: "" },
   name: "",
 };
-function InvokeFunction({ contractAddress, method }: { contractAddress: string, method: FunctionSpec }) {
+function InvokeFunction({ contractAddress, method }: { contractAddress: string; method: FunctionSpec }) {
   const [sg, setSignature] = useState<ReturnType<typeof createLogSingnature>>(defaultState);
   const [args, setArgs] = useState<Record<string, { type: string; value: string; subType: string }>>({});
   // const contractAddress = useSelector(store, (state) => state.context.contract?.address);
@@ -62,6 +66,12 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
   const toastId = useId();
   const [block, setBlock] = useState(false);
   const [invkRetVal, setInvkRetVal] = useState<any>(null);
+  const recordInvoke = useMutation({
+    mutationFn: async (data: any) => {
+      return await axios.post("/api/analytics/invoke", data);
+    },
+  });
+  const { keypair } = useWallet();
 
   const handleInputChange = (name: string, value: string, type: string, subType: string) => {
     setArgs((prev) => ({
@@ -91,13 +101,22 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
       logger.info("Invoking Contract function...");
       setBlock(true);
-      logger.info(JSON.stringify(requestData, null, 2));
+      logger.info(safeStringify(requestData, 2));
       toast.loading("Invoking function...", { id: toastId });
       console.log("Invoke Data", requestData);
 
-      const contractService = new ContractService(Network_Url.TEST_NET);
+      const contractService = new ContractService(Network_Url.TEST_NET, keypair);
       const response = await contractService.invokeContract(requestData);
       const { resultXdr, diagnosticEventsXdr, status } = response;
+
+      if (status === "SUCCESS") {
+        recordInvoke.mutate({
+          wallet: contractService.pubKey(),
+          address: contractAddress,
+          method: method.name,
+          txHash: response.txHash,
+        });
+      }
 
       console.log("Invoke Result", resultXdr);
 
@@ -119,7 +138,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
           if (topics.includes("log")) {
             try {
-              logs.push(JSON.stringify(eventData));
+              logs.push(safeStringify(eventData));
             } catch {
               logs.push(String(eventData));
             }
@@ -165,7 +184,6 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
     }
   };
 
-
   return (
     <Fragment>
       <Dialog open={block}>
@@ -180,9 +198,14 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{marginTop: '2px'}}>
+          <Button
+            variant="outline"
+            key={method.name}
+            className="w-full text-left justify-start items-center btn-custom-invoke"
+            style={{ marginTop: "2px" }}
+          >
             <span>{method.name}</span>
-            {invkRetVal && (<span>{invkRetVal}</span>)}
+            {invkRetVal && <span>{invkRetVal}</span>}
             <ChevronsLeftRightEllipsis className="ml-auto" />
           </Button>
         </DialogTrigger>

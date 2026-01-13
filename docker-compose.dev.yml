@@ -1,0 +1,48 @@
+services:
+  database:
+    image: bitnami/postgresql:latest
+    container_name: solang-postgres
+    restart: always
+    env_file: .env # All services share this file
+    volumes:
+      - postgresql:/bitnami/postgresql
+    tmpfs:
+      - /var/lib/pg_stat_tmp
+    networks:
+      - app-network
+    environment:
+      - POSTGRESQL_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRESQL_PASSWORD=${POSTGRES_PASS}
+      - POSTGRESQL_DATABASE=${POSTGRES_DATABASE}
+      - POSTGRESQL_POSTGRES_PASSWORD=${POSTGRES_ADMIN}
+    ports:
+      - "${POSTGRES_PORT:-5438}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  analytics:
+    build:
+      context: .
+      dockerfile: packages/analytics/Dockerfile
+      args:
+        - DATABASE_URL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASS}@database:5432/${POSTGRES_DATABASE}
+    container_name: solang-analytics
+    restart: always
+    ports:
+      - "4000:4000"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASS}@database:5432/${POSTGRES_DATABASE}
+    networks:
+      - app-network
+    depends_on:
+      database:
+        condition: service_healthy
+volumes:
+  postgresql:
+
+networks:
+  app-network:
+    driver: bridge

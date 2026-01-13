@@ -29,8 +29,8 @@ macro_rules! docker_command {
 }
 
 /// Builds the compile command using solang docker image
-pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
-    println!("ip file: {:?}\nop dir: {:?}", input_file, output_dir);
+pub fn build_compile_command(input_dir: &Path, main_file: &str, output_dir: &Path) -> Command {
+    println!("Input dir: {:?}\nMain file: {}\nOutput dir: {:?}", input_dir, main_file, output_dir);
     // Base docker command
     let mut cmd = docker_command!(
         "run",
@@ -52,13 +52,11 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
     );
     cmd.kill_on_drop(true);
 
-    // Mounting input file
-    let file_name = "input.sol";
-    let mut mount_input_file = input_file.as_os_str().to_os_string();
-    mount_input_file.push(":");
-    mount_input_file.push(DOCKER_WORKDIR);
-    mount_input_file.push(file_name);
-    cmd.arg("--volume").arg(&mount_input_file);
+    // Mount entire input directory (contains all source files)
+    let mut mount_input_dir = input_dir.as_os_str().to_os_string();
+    mount_input_dir.push(":");
+    mount_input_dir.push(DOCKER_WORKDIR);
+    cmd.arg("--volume").arg(&mount_input_dir);
 
     // Mounting output directory
     let mut mount_output_dir = output_dir.as_os_str().to_os_string();
@@ -69,11 +67,11 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
     // Using the solang image
     cmd.arg(DOCKER_IMAGE_BASE_NAME);
 
-    // Building the compile command
-    let remove_command = format!("rm -rf {}*.wasm {}*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
+    // Building the compile command - compile the main file (imports will be resolved from same directory)
+    let remove_command = format!("rm -rf {}/*.wasm {}/*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
     let compile_command = format!(
         "solang compile --target soroban -o /playground-result {} > /playground-result/stdout.log 2> /playground-result/stderr.log",
-        file_name
+        main_file
     );
     let sh_command = format!("{} && {}", remove_command, compile_command);
     cmd.arg("-c").arg(sh_command);
@@ -87,7 +85,7 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
 pub struct Sandbox {
     #[allow(dead_code)]
     scratch: TempDir,
-    input_file: PathBuf,
+    input_dir: PathBuf,
     output_dir: PathBuf,
 }
 
@@ -95,28 +93,46 @@ impl Sandbox {
     /// Creates a new sandbox
     pub fn new() -> Result<Self> {
         let scratch = TempDir::with_prefix("solang_playground").context("failed to create scratch directory")?;
-        let input_file = scratch.path().join("input.sol");
+        let input_dir = scratch.path().join("input");
         let output_dir = scratch.path().join("output");
+        
+        fs::create_dir(&input_dir).context("failed to create input directory")?;
         fs::create_dir(&output_dir).context("failed to create output directory")?;
 
+        fs::set_permissions(&input_dir, PermissionsExt::from_mode(0o777))
+            .context("failed to set input permissions")?;
         fs::set_permissions(&output_dir, PermissionsExt::from_mode(0o777))
             .context("failed to set output permissions")?;
         
-        File::create(&input_file).context("failed to create input file")?;
-        
         Ok(Sandbox {
             scratch,
-            input_file,
+            input_dir,
             output_dir,
         })
     }
 
     /// Compiles the contract given the source code
     pub fn compile(&self, req: &CompilationRequest) -> Result<CompilationResult> {
-        self.write_source_code(&req.source)?;
+        // Determine main file name
+        let main_file_name = req.main_file.as_deref().unwrap_or("input.sol");
+        
+        // Write the main source file
+        self.write_source_file(main_file_name, &req.source)?;
+        
+        // Write additional files if provided
+        if let Some(files) = &req.files {
+            for (filename, content) in files {
+                // Skip if it's the same as main file
+                if filename != main_file_name {
+                    self.write_source_file(filename, content)?;
+                }
+            }
+        }
 
-        let command = build_compile_command(&self.input_file, &self.output_dir);
-        // println!("Executing command: \n{:#?}", command);
+        let command = build_compile_command(&self.input_dir, main_file_name, &self.output_dir);
+        println!("Executing compile command for {} with {} additional files", 
+                 main_file_name, 
+                 req.files.as_ref().map(|f| f.len()).unwrap_or(0));
 
         let output = run_command(command)?;
         println!("out: {:?}", output);
@@ -187,19 +203,14 @@ impl Sandbox {
         Ok(compile_response)
     }
 
-    /// A helper function to write the source code to the input file
-    fn write_source_code(&self, code: &str) -> Result<()> {
-        println!("writing to {:?}", self.input_file);
-        fs::write(&self.input_file, code).context("failed to write source code")?;
-        match fs::read_to_string(&self.input_file) {
-            Ok(content) => println!("Successfully read: {:?}", content),
-            Err(e) => eprintln!("Error reading file: {}", e),
-        }
-        fs::set_permissions(&self.input_file, PermissionsExt::from_mode(0o777))
+    /// A helper function to write a source file to the input directory
+    fn write_source_file(&self, filename: &str, code: &str) -> Result<()> {
+        let file_path = self.input_dir.join(filename);
+        println!("Writing file: {:?}", file_path);
+        fs::write(&file_path, code).context("failed to write source code")?;
+        fs::set_permissions(&file_path, PermissionsExt::from_mode(0o777))
             .context("failed to set source permissions")?;
-        let s: String = code.chars().take(40).collect();
-        println!("Code: {:?}", s);
-        println!("Wrote {} bytes of source to {}", code.len(), self.input_file.display());
+        println!("Wrote {} bytes to {}", code.len(), file_path.display());
         Ok(())
     }
 }
