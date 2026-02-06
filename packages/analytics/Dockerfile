@@ -14,8 +14,10 @@ ENV DATABASE_URL=${DATABASE_URL}
 COPY package.json yarn.lock ./
 COPY packages/analytics/package.json ./packages/analytics/package.json
 
-RUN --mount=type=cache,target=/root/.cache/yarn \
-    YARN_CACHE_FOLDER=/root/.cache/yarn yarn install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.cache/yarn,id=yarn-cache,sharing=locked \
+    YARN_CACHE_FOLDER=/root/.cache/yarn \
+    yarn install --frozen-lockfile --ignore-scripts
+
 
 COPY . .
 
@@ -36,8 +38,10 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 COPY packages/analytics/package.json ./packages/analytics/package.json
 
-RUN --mount=type=cache,target=/root/.cache/yarn \
-    YARN_CACHE_FOLDER=/root/.cache/yarn yarn install --production --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.cache/yarn,id=yarn-cache,sharing=locked \
+    YARN_CACHE_FOLDER=/root/.cache/yarn \
+    yarn install --frozen-lockfile --ignore-scripts
+
 
 # ---------- Production Stage ----------
 FROM node:22-alpine AS production
