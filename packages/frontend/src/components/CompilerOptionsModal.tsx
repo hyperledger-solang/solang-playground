@@ -66,7 +66,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
             // Only close modal if compilation was successful
             if (result.data) {
                 onClose();
-                publicKey && recordCompile.mutate(publicKey);
+                if (publicKey) {
+                    recordCompile.mutate(publicKey);
+                }
 
             }
         } catch (error) {
