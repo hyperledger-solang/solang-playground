@@ -1,14 +1,7 @@
 name: Docker CI
 
 on:
-  push:
-    branches:
-      - tabledatafix
-
-  pull_request:
-    branches:
-      - tabledatafix
-
+  workflow_dispatch:
 
 jobs:
   build_and_test:
@@ -20,7 +13,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
 
       - name: Install root dependencies
         run: npm install
@@ -52,11 +44,11 @@ jobs:
       - name: Build docker image
         # Use direct docker build for clarity and tagging
         # Use the Dockerfile with embedded entrypoint
-        run: docker build -t solang-aws-test -f Dockerfile .
+        run: docker build -t ahmadsamehh/playground-gh -f Dockerfile .
 
       - name: Run docker container in detached mode
         # Publish both port 4444 (backend) and 3000 (frontend)
-        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend solang-aws-test
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh
 
       - name: Download wait-for-it.sh
         run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
@@ -97,33 +89,4 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          docker tag solang-aws-test ahmadsamehh/solang-aws-test:pr-$PR_NUMBER
-          docker push ahmadsamehh/solang-aws-test:pr-$PR_NUMBER
-
-  deploy_after_build:
-    needs: build_and_test
-    runs-on: "ubuntu-latest"
-    steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          # Fail immediately if any command fails
-          set -e
-          
-          # Move to project directory
-          cd /home/ubuntu
-          
-          echo "Pulling latest Docker images..."
-          docker compose -f solang-pg-analytics-test.yml pull
-          
-          echo "Starting containers with updated images..."
-          docker compose -f solang-pg-analytics-test.yml up -d
-          
-          echo "Cleaning up old unused Docker images..."
-          docker image prune -f
-          
-          echo "Deployment finished successfully!"
+          docker push ahmadsamehh/playground-gh:pr-$PR_NUMBER

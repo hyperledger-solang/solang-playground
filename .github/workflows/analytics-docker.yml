@@ -2,15 +2,11 @@ name: Analytics Docker Build
 
 on:
   push:
-    branches:
-      - tabledatafix
     paths:
       - 'packages/analytics/**'
       - '.github/workflows/analytics-docker.yml'
   
   pull_request:
-    branches:
-      - tabledatafix
     paths:
       - 'packages/analytics/**'
       - '.github/workflows/analytics-docker.yml'

@@ -21,72 +21,154 @@ contract incrementer {
 `;
 
 export const defaultAuth = `contract auth {
-    // Only this address can call the increment function
-    address public owner = address"GDRIX624OGPQEX264NY72UKOJQUASHU3PYKL6DDPGSTWXWJSBOTR6N7W";
+  // Only this address can call the increment function
+  address public owner = address"GDRIX624OGPQEX264NY72UKOJQUASHU3PYKL6DDPGSTWXWJSBOTR6N7W";
 
+  uint64 public instance counter = 20;
 
-    uint64 public instance counter = 20;
+  function increment() public returns (uint64) {
+    owner.requireAuth();
+    counter = counter + 1;
+    return counter;
+  }
+}
+`;
 
-    function increment() public returns (uint64) {
-
-        owner.requireAuth();
-
-        counter = counter + 1;
-
-        return counter;
-
+export const mathfile = `contract math {
+  function max(uint64 a, uint64 b) public returns (uint64) {
+    if (a > b) {
+      return a;
+    } else {
+      return b;
     }
+  }
+
+  function max(uint64 a, uint64 b, uint64 c) public returns (uint64) {
+    if (a > b) {
+      if (a > c) {
+        return a;
+      } else {
+        return c;
+      }
+    } else {
+      if (b > c) {
+        return b;
+      } else {
+        return c;
+      }
+    }
+  }
+}
+`;
+
+export const printerfile = `contract Printer {
+  function print() public {
+    print("Hello, World!");
+  }
+}
+`;
+
+export const mathfile2 = `pragma solidity 0;
+contract math2 {
+  function add(uint256 a, uint256 b) public returns (uint256) {
+    return a + b;
+  }
+
+  function sub(uint256 a, uint256 b) public returns (uint256) {
+    return a - b;
+  }
+
+  function mul(uint256 a, uint256 b) public returns (uint256) {
+    return a * b;
+  }
+
+  function div(uint256 b) public returns (uint256) {
+    uint256 a = 100;
+    return a / b;
+  }
+
+  function mod(uint256 b) public returns (uint256) {
+    uint256 a = 100;
+    return a % b;
+  }
+
+  // Test function that uses constants to avoid passing 256-bit values
+  function test_constants() public returns (uint256) {
+    uint256 a = 5;
+    uint256 b = 4;
+    return a + b;
+  }
+
+  // Test edge case: maximum uint256 value
+  function test_max_value() public returns (uint256) {
+    uint256 max = 2**256 - 1;
+    return max;
+  }
+
+  // Test edge case: zero values
+  function test_zero_ops() public returns (uint256) {
+    uint256 a = 0;
+    uint256 b = 0;
+    return a + b;
+  }
+
+  // Test edge case: large numbers
+  function test_large_numbers() public returns (uint256) {
+    uint256 a = 2**128;
+    uint256 b = 2**128;
+    return a + b;
+  }
 }
 `;
 
 export const defaultError = `contract error {
-    uint64 public count = 1;
+  uint64 public count = 1;
 
-    function decrement() public returns (uint64) {
-        print("Second call will FAIL!");
-        count -= 1;
-        return count;
-    }
+  function decrement() public returns (uint64) {
+    print("Second call will FAIL!");
+    count -= 1;
+    return count;
+  }
 }
 `;
+
 export const defaultStorageTypes = `ccontract storage_types {
+  uint64 public temporary var = 1;
+  uint64 public instance var1 = 1;
+  uint64 public persistent var2 = 2;
+  uint64 public var3 = 2;
 
-    uint64 public temporary var = 1;
-    uint64 public instance var1 = 1;
-    uint64 public persistent var2 = 2;
-    uint64 public var3 = 2;
+  function inc() public {
+    var++;
+    var1++;
+    var2++;
+    var3++;
+  }
 
-    function inc() public {
-        var++;
-        var1++;
-        var2++;
-        var3++;
-    }
-
-    function dec() public {
-        var--;
-        var1--;
-        var2--;
-        var3--;
-    }
+  function dec() public {
+    var--;
+    var1--;
+    var2--;
+    var3--;
+  }
 }
 `;
 
 export const defaultTTLStorage = `contract ttl_storage {
-    uint64 public persistent pCount = 11;
-    uint64 temporary tCount = 7;
-    uint64 instance iCount = 3;
+  uint64 public persistent pCount = 11;
+  uint64 temporary tCount = 7;
+  uint64 instance iCount = 3;
 
-    function extend_persistent_ttl() public view returns (int64) {
-        return pCount.extendTtl(1000, 5000);
-    }
+  function extend_persistent_ttl() public view returns (int64) {
+    return pCount.extendTtl(1000, 5000);
+  }
 
-    function extend_temp_ttl() public view returns (int64) {
-        return tCount.extendTtl(3000, 7000);
-    }
+  function extend_temp_ttl() public view returns (int64) {
+    return tCount.extendTtl(3000, 7000);
+  }
 
-    function extendInstanceTtl() public view returns (int64) {
-        return extendInstanceTtl(2000, 10000);
-    }
+  function extendInstanceTtl() public view returns (int64) {
+    return extendInstanceTtl(2000, 10000);
+  }
 }
 `;
