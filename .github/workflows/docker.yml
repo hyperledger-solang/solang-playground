@@ -1,4 +1,4 @@
-name: Docker CI
+name: Build and Test Docker Image
 
 on:
   workflow_dispatch:
@@ -79,14 +79,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
-        if: github.event_name == 'push'
-        run: |
-          docker tag solang-aws-test ahmadsamehh/solang-aws-test:latest
-          docker push ahmadsamehh/solang-aws-test:latest
+      - name: Push to Docker Hub
+        run: docker push ahmadsamehh/playground-gh:latest
 
-      - name: Tag and Push Docker image (pull request event)
-        if: github.event_name == 'pull_request'
-        run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          docker push ahmadsamehh/playground-gh:pr-$PR_NUMBER
+      # - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     docker push ahmadsamehh/playground-gh:latest
+
+      # - name: Tag and Push Docker image (pull request event)
+      #   if: github.event_name == 'pull_request'
+      #   run: |
+      #     PR_NUMBER=${{ github.event.pull_request.number }}
+      #     docker push ahmadsamehh/playground-gh:pr-$PR_NUMBER
