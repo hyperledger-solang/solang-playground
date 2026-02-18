@@ -41,7 +41,7 @@ export const events = {
     }
   },
   addDeployedContract(context: Context, event: { basePath: string; name: string; contract: any }) {},
-  addFile(context: Context, event: { basePath: string; name: string; content: string }) {
+  addFile(context: Context, event: { basePath: string; name: string; content: string; openInTab?: boolean }) {
     const path = createPath(event.basePath, event.name);
     const file = {
       type: ExpNodeType.FILE,
@@ -51,8 +51,10 @@ export const events = {
 
     set(context, path, file);
     context.files[path] = event.content;
-    context.currentFile = path;
-    events.addTab(context, { path });
+    if (event.openInTab ?? true) {
+      context.currentFile = path;
+      events.addTab(context, { path });
+    }
   },
   addFiles(context: Context, event: { basePath: string; files: { name: string; content: string }[] }) {
     for (const file of event.files) {
