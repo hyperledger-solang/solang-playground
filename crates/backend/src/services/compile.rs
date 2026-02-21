@@ -17,6 +17,9 @@ pub struct CompilationRequest {
     /// Additional files in the workspace (filename -> content)
     #[serde(default)]
     pub files: Option<HashMap<String, String>>,
+    /// Extra compiler flags (for example "--optimize")
+    #[serde(default)]
+    pub compiler_flags: Option<Vec<String>>,
 }
 
 /// Response from compiling a contract
@@ -57,6 +60,7 @@ pub async fn route_compile(req: Json<CompilationRequest>) -> impl Responder {
             source: req.source.clone(),
             main_file: req.main_file.clone(),
             files: req.files.clone(),
+            compiler_flags: req.compiler_flags.clone(),
         })
     })
     .await

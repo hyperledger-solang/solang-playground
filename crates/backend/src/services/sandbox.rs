@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use tempfile::TempDir;
 use tokio::process::Command;
 
@@ -28,8 +28,43 @@ macro_rules! docker_command {
     });
 }
 
+fn shell_escape(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn sanitize_compiler_flags(flags: &[String]) -> Result<Vec<String>> {
+    let mut sanitized = Vec::new();
+
+    for flag in flags {
+        let trimmed = flag.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if !trimmed.starts_with("--") {
+            bail!("invalid compiler flag '{trimmed}': flags must start with '--'");
+        }
+
+        if !trimmed
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':' | '='))
+        {
+            bail!("invalid compiler flag '{trimmed}': unsupported characters");
+        }
+
+        sanitized.push(trimmed.to_string());
+    }
+
+    Ok(sanitized)
+}
+
 /// Builds the compile command using solang docker image
-pub fn build_compile_command(input_dir: &Path, main_file: &str, output_dir: &Path) -> Command {
+pub fn build_compile_command(
+    input_dir: &Path,
+    main_file: &str,
+    compiler_flags: &[String],
+    output_dir: &Path,
+) -> Command {
     println!("Input dir: {:?}\nMain file: {}\nOutput dir: {:?}", input_dir, main_file, output_dir);
     // Base docker command
     let mut cmd = docker_command!(
@@ -69,9 +104,20 @@ pub fn build_compile_command(input_dir: &Path, main_file: &str, output_dir: &Pat
 
     // Building the compile command - compile the main file (imports will be resolved from same directory)
     let remove_command = format!("rm -rf {}/*.wasm {}/*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
+    let escaped_main_file = shell_escape(main_file);
+    let escaped_flags = compiler_flags
+        .iter()
+        .map(|flag| shell_escape(flag))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let flags_segment = if escaped_flags.is_empty() {
+        String::new()
+    } else {
+        format!("{escaped_flags} ")
+    };
     let compile_command = format!(
-        "solang compile --target soroban -o /playground-result {} > /playground-result/stdout.log 2> /playground-result/stderr.log",
-        main_file
+        "solang compile --target soroban -o /playground-result {}{} > /playground-result/stdout.log 2> /playground-result/stderr.log",
+        flags_segment, escaped_main_file
     );
     let sh_command = format!("{} && {}", remove_command, compile_command);
     cmd.arg("-c").arg(sh_command);
@@ -115,6 +161,7 @@ impl Sandbox {
     pub fn compile(&self, req: &CompilationRequest) -> Result<CompilationResult> {
         // Determine main file name
         let main_file_name = req.main_file.as_deref().unwrap_or("input.sol");
+        let compiler_flags = sanitize_compiler_flags(req.compiler_flags.as_deref().unwrap_or(&[]))?;
         
         // Write the main source file
         self.write_source_file(main_file_name, &req.source)?;
@@ -129,10 +176,13 @@ impl Sandbox {
             }
         }
 
-        let command = build_compile_command(&self.input_dir, main_file_name, &self.output_dir);
-        println!("Executing compile command for {} with {} additional files", 
-                 main_file_name, 
-                 req.files.as_ref().map(|f| f.len()).unwrap_or(0));
+        let command = build_compile_command(&self.input_dir, main_file_name, &compiler_flags, &self.output_dir);
+        println!(
+            "Executing compile command for {} with {} additional files and {} compiler flags",
+            main_file_name,
+            req.files.as_ref().map(|f| f.len()).unwrap_or(0),
+            compiler_flags.len()
+        );
 
         let output = run_command(command)?;
         println!("out: {:?}", output);
@@ -282,15 +332,14 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
 pub fn extract_error_message(log: &str) -> String {
     // Remove ANSI escape codes (used for terminal colors)
     let cleaned_log = remove_ansi_escape_codes(log);
+    let cleaned_log = cleaned_log.trim();
 
     // Find the start of the actual error message by looking for the keyword "error:"
     if let Some(start) = cleaned_log.find("error:") {
         // Extract the error message starting from the keyword "error:" but ignore the keyword itself
-        let error_message = &cleaned_log[start + "error:".len()..];
-        error_message.to_string()
+        cleaned_log[start + "error:".len()..].trim().to_string()
     } else {
-        // If no error message is found, return a default message
-        "No error message found".to_string()
+        cleaned_log.to_string()
     }
 }
 

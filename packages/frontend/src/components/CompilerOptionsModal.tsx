@@ -45,10 +45,30 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const selected = useSelector(store, (state) => state.context.currentFile);
     const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
 
+    const buildCompilerFlags = (): string[] => {
+        const quickFlagList = [
+            quickFlags.optimize ? "--optimize" : "",
+            quickFlags.emitIr ? "--emit-ir" : "",
+            quickFlags.emitAbi ? "--emit-abi" : "",
+            quickFlags.emitDebug ? "--emit-debug" : "",
+            quickFlags.noStrengthReduce ? "--no-strength-reduce" : "",
+            quickFlags.noDeadStorage ? "--no-dead-storage" : "",
+        ].filter(Boolean);
+
+        const customFlagList = customFlags
+            .split(/\s+/)
+            .map((flag) => flag.trim())
+            .filter(Boolean);
+
+        return Array.from(new Set([...quickFlagList, ...customFlagList]));
+    };
+
     const handleCompile = async () => {
         setIsCompiling(true);
         try {
-            const result = await compileFile();
+            const result = await compileFile(undefined, {
+                compilerFlags: buildCompilerFlags(),
+            });
             console.log('[-] compilation result', result);
 
             // Check if compilation failed

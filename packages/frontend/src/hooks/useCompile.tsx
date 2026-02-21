@@ -2,13 +2,37 @@ import { useFileContent } from "@/state/hooks";
 import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import { logger } from "@/state/utils";
-import { Network_Url } from "@/constants";
 import { fetchWithTimeout } from "@/utils";
 
 export interface ICompilationResult {
     data: null | Buffer,
     err: null | string
 }
+
+export interface ICompileOptions {
+    compilerFlags?: string[];
+}
+
+interface ICompilationPayloadBase {
+    stdout: string;
+    stderr: string;
+    compile_stdout: string;
+    compile_stderr: string;
+}
+
+interface ICompilationSuccessResponse {
+    type: "SUCCESS";
+    payload: ICompilationPayloadBase & {
+        wasm: Buffer;
+    };
+}
+
+interface ICompilationErrorResponse {
+    type: "ERROR";
+    payload: ICompilationPayloadBase;
+}
+
+type CompilationApiResponse = ICompilationSuccessResponse | ICompilationErrorResponse;
 
 /**
  * Extract just the filename from a state path like "explorer.items.src.items['main.sol']"
@@ -33,11 +57,31 @@ function getAllSolFiles(files: Record<string, string>): Record<string, string> {
     return solFiles;
 }
 
+function normalizeOutput(output?: string): string {
+    return output?.trim() || "";
+}
+
+function logCompilerOutput(result: CompilationApiResponse) {
+    const compileStdout = normalizeOutput(result.payload.compile_stdout);
+    if (compileStdout) {
+        logger.info(compileStdout);
+    }
+
+    const compileStderr = normalizeOutput(result.payload.compile_stderr);
+    if (compileStderr) {
+        if (result.type === "SUCCESS") {
+            logger.warning(compileStderr);
+        } else {
+            logger.error(compileStderr);
+        }
+    }
+}
+
 function useCompile() {
     const code = useFileContent();
     const selected = useSelector(store, (state) => state.context.currentFile);
 
-    const compileFile = async (targetFilePath?: string): Promise<ICompilationResult> => {
+    const compileFile = async (targetFilePath?: string, options?: ICompileOptions): Promise<ICompilationResult> => {
         try {
             store.send({ type: "setDialogSpinner", show: true });
 
@@ -72,6 +116,7 @@ function useCompile() {
                     source: codeToCompile,
                     main_file: mainFileName,
                     files: allFiles,
+                    compiler_flags: options?.compilerFlags || [],
                 }),
             };
 
@@ -97,6 +142,7 @@ function useCompile() {
 
             if (success) {
                 if (result.type === "SUCCESS") {
+                    logCompilerOutput(result);
                     const wasm = result.payload.wasm;
                     // Persist the compiled WASM against the target path (or current selection)
                     store.send({ type: "updateCurrentWasm", path: path, buff: wasm });
@@ -106,8 +152,8 @@ function useCompile() {
                         err: null
                     };
                 } else {
-                    const message = result.payload.compile_stderr;
-                    logger.error(message);
+                    logCompilerOutput(result);
+                    const message = normalizeOutput(result.payload.compile_stderr) || normalizeOutput(result.payload.stderr) || "Compilation failed";
                     err = message
                 }
             } else {
