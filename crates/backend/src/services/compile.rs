@@ -17,7 +17,7 @@ pub struct CompilationRequest {
     /// Additional files in the workspace (filename -> content)
     #[serde(default)]
     pub files: Option<HashMap<String, String>>,
-    /// Extra compiler flags (for example "--optimize")
+    /// Extra compiler flags (for example "-O", "default", "--emit", "llvm-ir")
     #[serde(default)]
     pub compiler_flags: Option<Vec<String>>,
 }

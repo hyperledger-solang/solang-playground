@@ -24,8 +24,7 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const [quickFlags, setQuickFlags] = useState({
         optimize: false,
         emitIr: false,
-        emitAbi: false,
-        emitDebug: false,
+        release: false,
         noStrengthReduce: false,
         noDeadStorage: false,
     });
@@ -47,20 +46,19 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
     const buildCompilerFlags = (): string[] => {
         const quickFlagList = [
-            quickFlags.optimize ? "--optimize" : "",
-            quickFlags.emitIr ? "--emit-ir" : "",
-            quickFlags.emitAbi ? "--emit-abi" : "",
-            quickFlags.emitDebug ? "--emit-debug" : "",
-            quickFlags.noStrengthReduce ? "--no-strength-reduce" : "",
-            quickFlags.noDeadStorage ? "--no-dead-storage" : "",
-        ].filter(Boolean);
+            ...(quickFlags.optimize ? ["-O", "default"] : []),
+            ...(quickFlags.emitIr ? ["--emit", "llvm-ir"] : []),
+            ...(quickFlags.release ? ["--release"] : []),
+            ...(quickFlags.noStrengthReduce ? ["--no-strength-reduce"] : []),
+            ...(quickFlags.noDeadStorage ? ["--no-dead-storage"] : []),
+        ];
 
         const customFlagList = customFlags
             .split(/\s+/)
             .map((flag) => flag.trim())
             .filter(Boolean);
 
-        return Array.from(new Set([...quickFlagList, ...customFlagList]));
+        return [...quickFlagList, ...customFlagList];
     };
 
     const handleCompile = async () => {
@@ -133,7 +131,7 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                         : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                         }`}
                                 >
-                                    --optimize
+                                    -O default
                                 </button>
 
                                 <button
@@ -143,27 +141,17 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                         : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                         }`}
                                 >
-                                    --emit-ir
+                                    --emit llvm-ir
                                 </button>
 
                                 <button
-                                    onClick={() => handleQuickFlagChange('emitAbi')}
-                                    className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitAbi
+                                    onClick={() => handleQuickFlagChange('release')}
+                                    className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.release
                                         ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
                                         : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
                                         }`}
                                 >
-                                    --emit-abi
-                                </button>
-
-                                <button
-                                    onClick={() => handleQuickFlagChange('emitDebug')}
-                                    className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitDebug
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
-                                        }`}
-                                >
-                                    --emit-debug
+                                    --release
                                 </button>
 
                                 <button
@@ -207,7 +195,7 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                         <div className="bg-[#1e1f3f] p-3 rounded-xl border border-[#34355f]">
                             <h4 className="text-[#cfd1e6] font-medium mb-2 text-sm">Compiler Information</h4>
                             <div className="text-[#8c8fb0] text-sm space-y-1">
-                                <div>Solang Compiler v0.3.3</div>
+                                <div>Solang Compiler v0.3.4</div>
                                 <div>Target: Soroban (Stellar Smart Contracts)</div>
                                 <div>Output: WASM bytecode + ABI JSON</div>
                             </div>

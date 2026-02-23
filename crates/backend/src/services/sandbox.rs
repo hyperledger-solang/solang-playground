@@ -14,8 +14,8 @@ use tokio::process::Command;
 use crate::services::{CompilationRequest, CompilationResult};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
-// const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d";
-const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang:latest";
+const DOCKER_IMAGE_BASE_NAME: &str =
+    "ghcr.io/hyperledger-solang/solang@sha256:8a9527c89f01f72ad88e6c13c9f099bcabc040ef24856cc616d56290fde98d3c";
 const DOCKER_WORKDIR: &str = "/builds/contract/";
 const DOCKER_OUTPUT: &str = "/playground-result";
 
@@ -33,16 +33,18 @@ fn shell_escape(value: &str) -> String {
 }
 
 fn sanitize_compiler_flags(flags: &[String]) -> Result<Vec<String>> {
+    enum ExpectedValue {
+        Emit,
+        OptimizeLevel,
+    }
+
     let mut sanitized = Vec::new();
+    let mut expected_value: Option<ExpectedValue> = None;
 
     for flag in flags {
         let trimmed = flag.trim();
         if trimmed.is_empty() {
             continue;
-        }
-
-        if !trimmed.starts_with("--") {
-            bail!("invalid compiler flag '{trimmed}': flags must start with '--'");
         }
 
         if !trimmed
@@ -52,7 +54,47 @@ fn sanitize_compiler_flags(flags: &[String]) -> Result<Vec<String>> {
             bail!("invalid compiler flag '{trimmed}': unsupported characters");
         }
 
+        if let Some(expected) = expected_value.take() {
+            let valid = match expected {
+                ExpectedValue::Emit => {
+                    matches!(trimmed, "ast-dot" | "cfg" | "llvm-ir" | "llvm-bc" | "object" | "asm")
+                }
+                ExpectedValue::OptimizeLevel => {
+                    matches!(trimmed, "none" | "less" | "default" | "aggressive")
+                }
+            };
+
+            if !valid {
+                let expected_hint = match expected {
+                    ExpectedValue::Emit => "ast-dot|cfg|llvm-ir|llvm-bc|object|asm",
+                    ExpectedValue::OptimizeLevel => "none|less|default|aggressive",
+                };
+                bail!("invalid value '{trimmed}': expected one of {expected_hint}");
+            }
+
+            sanitized.push(trimmed.to_string());
+            continue;
+        }
+
+        if !trimmed.starts_with('-') {
+            bail!("invalid compiler flag '{trimmed}': flags must start with '-'");
+        }
+
         sanitized.push(trimmed.to_string());
+
+        expected_value = match trimmed {
+            "--emit" => Some(ExpectedValue::Emit),
+            "-O" => Some(ExpectedValue::OptimizeLevel),
+            _ => None,
+        };
+    }
+
+    if let Some(expected) = expected_value {
+        let missing_for = match expected {
+            ExpectedValue::Emit => "--emit",
+            ExpectedValue::OptimizeLevel => "-O",
+        };
+        bail!("missing value for '{missing_for}'");
     }
 
     Ok(sanitized)

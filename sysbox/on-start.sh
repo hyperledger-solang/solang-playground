@@ -51,7 +51,7 @@ fi
 # Pull solang image with retries
 echo "Pulling solang image..."
 pull_attempt=0
-until docker pull ghcr.io/hyperledger-solang/solang:latest; do
+until docker pull ghcr.io/hyperledger-solang/solang@sha256:8a9527c89f01f72ad88e6c13c9f099bcabc040ef24856cc616d56290fde98d3c; do
     pull_attempt=$((pull_attempt + 1))
     if [ $pull_attempt -ge 3 ]; then
         echo "Failed to pull solang image after 3 attempts"
