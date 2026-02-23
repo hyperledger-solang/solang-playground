@@ -144,11 +144,20 @@ function useCompile() {
                 if (result.type === "SUCCESS") {
                     logCompilerOutput(result);
                     const wasm = result.payload.wasm;
-                    // Persist the compiled WASM against the target path (or current selection)
-                    store.send({ type: "updateCurrentWasm", path: path, buff: wasm });
-                    logger.info("Contract compiled successfully!");
+
+                    if (wasm && wasm.length > 0) {
+                        // Persist the compiled WASM against the target path (or current selection)
+                        store.send({ type: "updateCurrentWasm", path: path, buff: wasm });
+                        logger.info("Contract compiled successfully!");
+                        return {
+                            data: wasm,
+                            err: null
+                        };
+                    }
+
+                    logger.info("Contract compiled successfully (no WASM artifact generated for selected emit mode).");
                     return {
-                        data: wasm,
+                        data: null,
                         err: null
                     };
                 } else {

@@ -81,13 +81,10 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                 store.send({ type: "addCompiled", path: selected, name: obj.name });
             }
 
-            // Only close modal if compilation was successful
-            if (result.data) {
-                onClose();
-                if (publicKey) {
-                    recordCompile.mutate(publicKey);
-                }
-
+            // Close modal on successful compilation, even if no deployable WASM artifact was produced.
+            onClose();
+            if (publicKey) {
+                recordCompile.mutate(publicKey);
             }
         } catch (error) {
             console.error('Compilation failed:', error);

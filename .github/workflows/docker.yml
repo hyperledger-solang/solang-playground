@@ -81,8 +81,8 @@ jobs:
 
       - name: Push to Docker Hub
         run: |
-          docker tag ahmadsamehh/playground-gh:latest ahmadsamehh/playground-gh:sendcompile
-          docker push ahmadsamehh/playground-gh:sendcompile
+          docker tag ahmadsamehh/playground-gh:latest ahmadsamehh/playground-gh:sendcompilev2
+          docker push ahmadsamehh/playground-gh:sendcompilev2
 
       # - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
       #   if: github.event_name == 'push'

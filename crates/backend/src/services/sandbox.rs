@@ -262,34 +262,34 @@ impl Sandbox {
         let stdout = String::from_utf8(output.stdout).context("failed to convert vec to string")?;
         let stderr = String::from_utf8(output.stderr).context("failed to convert vec to string")?;
 
-        let compile_response = match file {
-            Some(file) => match read(&file) {
-                Ok(Some(wasm)) => CompilationResult::Success {
-                    wasm,
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-                Ok(None) => CompilationResult::Error {
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-                Err(_) => CompilationResult::Error {
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-            },
-            None => CompilationResult::Error {
+        let command_succeeded = output.status.success();
+        let emit_mode = compiler_flags.iter().any(|flag| flag == "--emit");
+        let wasm = file.and_then(|path| read(&path).ok().flatten());
+
+        let compile_response = if let Some(wasm) = wasm {
+            CompilationResult::Success {
+                wasm,
                 stderr,
                 stdout,
                 compile_stdout,
                 compile_stderr,
-            },
+            }
+        } else if command_succeeded && emit_mode {
+            // `--emit ...` inspection modes can succeed without producing a `.wasm` artifact.
+            CompilationResult::Success {
+                wasm: Vec::new(),
+                stderr,
+                stdout,
+                compile_stdout,
+                compile_stderr,
+            }
+        } else {
+            CompilationResult::Error {
+                stderr,
+                stdout,
+                compile_stdout,
+                compile_stderr,
+            }
         };
 
         Ok(compile_response)
