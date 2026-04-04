@@ -41,14 +41,18 @@ jobs:
       - name: Restart docker service
         run: sudo systemctl restart docker.service
 
+      - name: Compute image tag (UTC date)
+        id: image_meta
+        run: echo "tag=$(date -u +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+
       - name: Build docker image
         # Use direct docker build for clarity and tagging
         # Use the Dockerfile with embedded entrypoint
-        run: docker build -t ahmadsamehh/playground-gh -f Dockerfile .
+        run: docker build -t ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }} -f Dockerfile .
 
       - name: Run docker container in detached mode
         # Publish both port 4444 (backend) and 3000 (frontend)
-        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }}
 
       - name: Download wait-for-it.sh
         run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
@@ -81,8 +85,7 @@ jobs:
 
       - name: Push to Docker Hub
         run: |
-          docker tag ahmadsamehh/playground-gh:latest ahmadsamehh/playground-gh:sendcompilev2
-          docker push ahmadsamehh/playground-gh:sendcompilev2
+          docker push ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }}
 
       # - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
       #   if: github.event_name == 'push'
