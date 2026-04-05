@@ -82,9 +82,49 @@ class ContractService {
     return Keypair.random();
   }
 
+  private isAccountNotFoundError(error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return /account not found|resource missing|not found/i.test(msg);
+  }
+
+  private async waitForAccount(pubKey: string, attempts = 8, delayMs = 750): Promise<Account | null> {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await this.account(pubKey);
+      } catch (error) {
+        if (!this.isAccountNotFoundError(error)) {
+          throw error;
+        }
+      }
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    return null;
+  }
+
   async fundAccount(pubKey = this.pubKey()) {
-    await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
-    this.acc = await this.account(pubKey);
+    const existing = await this.waitForAccount(pubKey, 2, 250);
+    if (existing) {
+      this.acc = existing;
+      return;
+    }
+
+    const funded = await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
+    if (!funded) {
+      throw new Error(
+        `Unable to fund testnet account ${pubKey}. Friendbot may be unavailable; please retry in a moment.`,
+      );
+    }
+
+    const account = await this.waitForAccount(pubKey, 12, 1000);
+    if (!account) {
+      throw new Error(
+        `Account ${pubKey} was funded but is not visible on RPC yet. Please retry in a few seconds.`,
+      );
+    }
+
+    this.acc = account;
   }
 
   pubKey() {

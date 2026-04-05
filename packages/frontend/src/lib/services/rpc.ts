@@ -22,26 +22,44 @@ export class RpcService {
         return r
     }
 
+    private friendbotRequestUrl(baseUrl: string, accountId: string) {
+        const trimmed = baseUrl.trim().replace(/\/+$/, "");
+        if (!trimmed) return "";
+        if (trimmed.includes("?addr=")) return `${trimmed}${accountId}`;
+        if (trimmed.includes("?")) return `${trimmed}&addr=${accountId}`;
+        return `${trimmed}?addr=${accountId}`;
+    }
+
     async fundAccount(accountId: string, url: Nullable<string> = null) {
-        try {
-            console.log('funding account', accountId, url);
-            let _url: string;
-            if(url) {
-                _url = url + '?addr=';
-            } else {
-                _url = this.url.replace('/rpc', '/friendbot?addr=');
+        const rpcDerivedFriendbot = this.url.replace(/\/rpc\/?$/, "/friendbot");
+        const candidates = Array.from(
+            new Set(
+                [url, rpcDerivedFriendbot, "https://friendbot.stellar.org", "https://friendbot-testnet.stellar.org", "https://horizon-testnet.stellar.org/friendbot"]
+                    .filter((u): u is string => Boolean(u && u.trim()))
+            )
+        );
+
+        for (const candidate of candidates) {
+            const requestUrl = this.friendbotRequestUrl(candidate, accountId);
+            if (!requestUrl) continue;
+            try {
+                console.log("funding account", accountId, requestUrl);
+                const r = await fetch(requestUrl);
+                const body = await r.text();
+                if (r.ok) {
+                    return true;
+                }
+
+                // If account already exists on testnet, continue as success.
+                if (r.status === 400 && /already|exists|funded/i.test(body)) {
+                    return true;
+                }
+            } catch (e) {
+                console.warn("friendbot request failed", candidate, e);
             }
-            const r = await fetch(`${_url}${accountId}`)
-            if(r.ok) {
-                const o = await r.json()
-                // console.log('result:', o) 
-                return o.successful
-            }
-        } catch(e) {
-            console.error('error funding account', e);
         }
 
-        return false
+        return false;
     }
 
     async getAccount(accountId: string) {

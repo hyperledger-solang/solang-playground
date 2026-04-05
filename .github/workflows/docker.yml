@@ -2,6 +2,11 @@ name: Build and Test Docker Image
 
 on:
   workflow_dispatch:
+    inputs:
+      feature_tag:
+        description: "Feature label to include in the image tag (e.g. rpc-fallback)"
+        required: false
+        default: "manual"
 
 jobs:
   build_and_test:
@@ -41,9 +46,18 @@ jobs:
       - name: Restart docker service
         run: sudo systemctl restart docker.service
 
-      - name: Compute image tag (UTC date)
+      - name: Compute image tag (branch + run + sha)
         id: image_meta
-        run: echo "tag=$(date -u +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+        run: |
+          FEATURE="${{ github.event.inputs.feature_tag }}"
+          BRANCH="${GITHUB_REF_NAME:-manual}"
+          SAFE_FEATURE=$(echo "$FEATURE" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g; s#-\{2,\}#-#g; s#^-##; s#-$##')
+          SAFE_BRANCH=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g; s#-\{2,\}#-#g; s#^-##; s#-$##')
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [ -z "$SAFE_FEATURE" ]; then SAFE_FEATURE="manual"; fi
+          TAG="${SAFE_FEATURE}-${SAFE_BRANCH}-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Computed image tag: ${TAG}"
 
       - name: Build docker image
         # Use direct docker build for clarity and tagging
