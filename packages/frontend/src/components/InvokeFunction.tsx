@@ -105,7 +105,7 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
       toast.loading("Invoking function...", { id: toastId });
       console.log("Invoke Data", requestData);
 
-      const contractService = new ContractService(Network_Url.TEST_NET, keypair);
+      const contractService = new ContractService(Network_Url.TEST_NET_FALLBACKS, keypair);
       const response = await contractService.invokeContract(requestData);
       const { resultXdr, diagnosticEventsXdr, status } = response;
 

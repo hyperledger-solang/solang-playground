@@ -24,6 +24,7 @@ import { mapIfValid } from "@/utils";
 class ContractService {
   private acc: Account;
   private rpcUrl: string;
+  private rpcUrls: string[];
   private wasmHash: string;
   private keyPair: Keypair;
   private rpcServer: Server;
@@ -33,11 +34,15 @@ class ContractService {
   private rpcService: RpcService;
   private isSetupDone = false;
 
-  constructor(rpcUrl: string, keyPair: Keypair = Keypair.random()) {
-    this.rpcUrl = rpcUrl;
+  constructor(rpcUrl: string | string[], keyPair: Keypair = Keypair.random()) {
+    this.rpcUrls = Array.isArray(rpcUrl) ? rpcUrl.filter(Boolean) : [rpcUrl];
+    this.rpcUrl = this.rpcUrls[0] || "";
+    if (!this.rpcUrl) {
+      throw new Error("At least one RPC URL must be provided");
+    }
     this.keyPair = keyPair;
-    this.rpcService = new RpcService(rpcUrl);
-    this.rpcServer = new Server(rpcUrl, { allowHttp: true });
+    this.rpcService = new RpcService(this.rpcUrl);
+    this.rpcServer = new Server(this.rpcUrl, { allowHttp: true });
 
     this.acc = {} as Account;
     this.wasmHash = "";
@@ -46,11 +51,31 @@ class ContractService {
     this.nwPassphrase = "";
   }
 
+  private useRpcUrl(url: string) {
+    this.rpcUrl = url;
+    this.rpcService = new RpcService(url);
+    this.rpcServer = new Server(url, { allowHttp: true });
+  }
+
   async setup() {
-    const nw = await this.rpcServer.getNetwork();
-    this.friendBotUrl = nw.friendbotUrl || "";
-    this.nwPassphrase = nw.passphrase;
-    this.isSetupDone = true;
+    let lastError: unknown = null;
+
+    for (const url of this.rpcUrls) {
+      try {
+        this.useRpcUrl(url);
+        const nw = await this.rpcServer.getNetwork();
+        this.friendBotUrl = nw.friendbotUrl || "";
+        this.nwPassphrase = nw.passphrase;
+        this.isSetupDone = true;
+        return;
+      } catch (error) {
+        lastError = error;
+        console.warn(`[ContractService] RPC setup failed for ${url}`, error);
+      }
+    }
+
+    const errMessage = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`Unable to connect to testnet RPC. Tried: ${this.rpcUrls.join(", ")}. Last error: ${errMessage}`);
   }
 
   genKeyPairRandom() {

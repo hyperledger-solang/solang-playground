@@ -213,7 +213,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                             <Label className="text-[#cccccc] font-medium">Network</Label>
                             <div className="bg-[#0F0F23] p-3 rounded-md border border-[#404040]">
                                 <div className="text-white font-medium text-lg">Testnet</div>
-                                <div className="text-[#9ca3af] text-sm">RPC: https://rpc-testnet.stellar.org</div>
+                                <div className="text-[#9ca3af] text-sm">RPC: Testnet (auto-fallback enabled)</div>
                             </div>
                         </div>
                     </div>

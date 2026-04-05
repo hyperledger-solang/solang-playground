@@ -117,7 +117,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             console.log("Invoke Data", requestData);
             logger.info(safeStringify(requestData, 2));
 
-            const contractService = new ContractService(Network_Url.TEST_NET, keypair);
+            const contractService = new ContractService(Network_Url.TEST_NET_FALLBACKS, keypair);
             const response = await contractService.invokeContract(requestData);
             const { resultXdr, diagnosticEventsXdr, status } = response;
 

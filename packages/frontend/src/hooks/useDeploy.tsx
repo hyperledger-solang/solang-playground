@@ -50,7 +50,7 @@ function useDeploy() {
         try {
             store.send({ type: "setDialogSpinner", show: true });
             logger.info(`Deploying contract from file: ${fileToDeploy}`);
-            const contractService = new ContractService(Network_Url.TEST_NET, keypair);
+            const contractService = new ContractService(Network_Url.TEST_NET_FALLBACKS, keypair);
 
             // If we don't have WASM buffer, compile the target file
             if (!wasmBuf && fileToDeploy && fileToDeploy !== 'explorer') {
