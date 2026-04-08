@@ -12,10 +12,9 @@ use tempfile::TempDir;
 use tokio::process::Command;
 
 use crate::services::{CompilationRequest, CompilationResult};
+use crate::services::solang_image::solang_docker_image;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
-const DOCKER_IMAGE_BASE_NAME: &str =
-    "ghcr.io/hyperledger-solang/solang@sha256:8a9527c89f01f72ad88e6c13c9f099bcabc040ef24856cc616d56290fde98d3c";
 const DOCKER_WORKDIR: &str = "/builds/contract/";
 const DOCKER_OUTPUT: &str = "/playground-result";
 
@@ -142,7 +141,7 @@ pub fn build_compile_command(
     cmd.arg("--volume").arg(&mount_output_dir);
 
     // Using the solang image
-    cmd.arg(DOCKER_IMAGE_BASE_NAME);
+    cmd.arg(solang_docker_image());
 
     // Building the compile command - compile the main file (imports will be resolved from same directory)
     let remove_command = format!("rm -rf {}/*.wasm {}/*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);

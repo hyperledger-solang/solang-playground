@@ -10,7 +10,7 @@ use actix_web::{
     App, HttpResponse, HttpServer, Result,
 };
 
-use backend::{route_compile, Opts};
+use backend::{route_compile, route_compiler_info, Opts};
 use actix_cors::Cors;
 
 pub struct FrontendState {
@@ -69,6 +69,8 @@ async fn main() -> std::io::Result<()> {
                 .add(("Cross-Origin-Embedder-Policy", "require-corp")),
         )
         .route("/compile", post().to(|body| route_compile(body)));
+        
+        app = app.route("/compiler-info", web::get().to(route_compiler_info));
 
         // Serve frontend files if configured via CLI
         match frontend_folder {

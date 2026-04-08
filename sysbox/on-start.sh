@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+SOLANG_DOCKER_IMAGE="${SOLANG_DOCKER_IMAGE:-ghcr.io/hyperledger-solang/solang@sha256:86dcaa2ab8d1c60d42939b33878d40c1a02ef1282f2d24be5c6f069633a8e7bf}"
+export SOLANG_DOCKER_IMAGE
+
 echo "[init] Checking for Docker availability..."
 
 use_host_docker=false
@@ -49,10 +52,9 @@ if [ "$use_host_docker" = false ]; then
 fi
 
 # Pull solang image with retries
-echo "Pulling solang image..."
+echo "Pulling solang image: ${SOLANG_DOCKER_IMAGE}"
 pull_attempt=0
-until docker pull ghcr.io/hyperledger-solang/solang@sha256:86dcaa2ab8d1c60d42939b33878d40c1a02ef1282f2d24be5c6f069633a8e7bf;
-# until docker pull ghcr.io/hyperledger-solang/solang:latest;
+until docker pull "${SOLANG_DOCKER_IMAGE}";
 do
     pull_attempt=$((pull_attempt + 1))
     if [ $pull_attempt -ge 3 ]; then

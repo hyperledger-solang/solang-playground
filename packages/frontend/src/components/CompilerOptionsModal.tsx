@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -20,6 +20,32 @@ interface CompilerOptionsModalProps {
     onClose: () => void;
 }
 
+interface CompilerInfo {
+    compiler_name: string;
+    compiler_version: string;
+    image: string;
+    image_digest: string;
+    target: string;
+    output: string;
+}
+
+const fallbackCompilerInfo: CompilerInfo = {
+    compiler_name: "Solang",
+    compiler_version: "Unavailable",
+    image: "Unavailable",
+    image_digest: "Unavailable",
+    target: "Soroban (Stellar Smart Contracts)",
+    output: "WASM bytecode + ABI JSON",
+};
+
+function shortenDigest(digest: string): string {
+    if (!digest || digest === "Unavailable" || digest.length <= 28) {
+        return digest;
+    }
+
+    return `${digest.slice(0, 20)}...${digest.slice(-10)}`;
+}
+
 function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const [quickFlags, setQuickFlags] = useState({
         optimize: false,
@@ -32,6 +58,9 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const [isCompiling, setIsCompiling] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const [compilerInfo, setCompilerInfo] = useState<CompilerInfo | null>(null);
+    const [isCompilerInfoLoading, setIsCompilerInfoLoading] = useState(false);
+    const [compilerInfoError, setCompilerInfoError] = useState<string | null>(null);
     const { publicKey } = useWallet();
     const recordCompile = useMutation({
       mutationFn: async (wallet: any) =>
@@ -43,6 +72,63 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     const { compileFile } = useCompile();
     const selected = useSelector(store, (state) => state.context.currentFile);
     const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        let mounted = true;
+
+        const loadCompilerInfo = async () => {
+            setIsCompilerInfoLoading(true);
+            setCompilerInfoError(null);
+
+            try {
+                const response = await fetch("/compiler-info", {
+                    method: "GET",
+                    credentials: "same-origin",
+                });
+
+                if (!response.ok) {
+                    throw new Error(`failed to fetch compiler info (${response.status})`);
+                }
+
+                const data = (await response.json()) as Partial<CompilerInfo>;
+                if (!mounted) {
+                    return;
+                }
+
+                setCompilerInfo({
+                    compiler_name: data.compiler_name || fallbackCompilerInfo.compiler_name,
+                    compiler_version: data.compiler_version || fallbackCompilerInfo.compiler_version,
+                    image: data.image || fallbackCompilerInfo.image,
+                    image_digest: data.image_digest || fallbackCompilerInfo.image_digest,
+                    target: data.target || fallbackCompilerInfo.target,
+                    output: data.output || fallbackCompilerInfo.output,
+                });
+            } catch (err) {
+                console.error("Unable to load compiler info", err);
+                if (!mounted) {
+                    return;
+                }
+                setCompilerInfoError("Could not load live compiler metadata.");
+                setCompilerInfo(null);
+            } finally {
+                if (mounted) {
+                    setIsCompilerInfoLoading(false);
+                }
+            }
+        };
+
+        loadCompilerInfo();
+
+        return () => {
+            mounted = false;
+        };
+    }, [isOpen]);
+
+    const activeCompilerInfo = compilerInfo || fallbackCompilerInfo;
 
     const buildCompilerFlags = (): string[] => {
         const quickFlagList = [
@@ -189,13 +275,59 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                         </div>
 
                         {/* Compiler Info */}
-                        <div className="bg-[#1e1f3f] p-3 rounded-xl border border-[#34355f]">
-                            <h4 className="text-[#cfd1e6] font-medium mb-2 text-sm">Compiler Information</h4>
-                            <div className="text-[#8c8fb0] text-sm space-y-1">
-                                <div>Solang Compiler v0.3.4</div>
-                                <div>Target: Soroban (Stellar Smart Contracts)</div>
-                                <div>Output: WASM bytecode + ABI JSON</div>
-                            </div>
+                        <div className="bg-gradient-to-br from-[#232552] via-[#1f2148] to-[#181a3a] p-4 rounded-2xl border border-[#3a3d72] shadow-[0_10px_28px_rgba(10,11,28,0.34)]">
+                            <h4 className="text-[#f2f3ff] font-semibold mb-3 text-sm tracking-wide">
+                                Compiler Information
+                            </h4>
+
+                            {isCompilerInfoLoading ? (
+                                <div className="space-y-2">
+                                    <div className="h-4 w-40 rounded bg-[#303362] animate-pulse" />
+                                    <div className="h-4 w-56 rounded bg-[#2b2e5a] animate-pulse" />
+                                    <div className="h-4 w-64 rounded bg-[#2b2e5a] animate-pulse" />
+                                </div>
+                            ) : (
+                                <div className="grid gap-2.5 sm:grid-cols-2">
+                                    <div className="sm:col-span-2 rounded-xl border border-[#3b3f76] bg-[#14162f]/70 px-3 py-2.5">
+                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">{activeCompilerInfo.compiler_name} Version</p>
+                                        <p className="text-[#ffffff] text-base font-semibold">{activeCompilerInfo.compiler_version}</p>
+                                    </div>
+
+                                    <div className="rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Image Digest</p>
+                                        <code
+                                            title={activeCompilerInfo.image_digest}
+                                            className="block text-[#e9e8ff] text-xs font-mono mt-1 break-all"
+                                        >
+                                            {shortenDigest(activeCompilerInfo.image_digest)}
+                                        </code>
+                                    </div>
+
+                                    <div className="rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Target</p>
+                                        <p className="text-[#e9e8ff] text-xs mt-1">{activeCompilerInfo.target}</p>
+                                    </div>
+
+                                    <div className="sm:col-span-2 rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Container Image</p>
+                                        <code
+                                            title={activeCompilerInfo.image}
+                                            className="block text-[#d8d9ef] text-xs font-mono mt-1 break-all"
+                                        >
+                                            {activeCompilerInfo.image}
+                                        </code>
+                                    </div>
+
+                                    <div className="sm:col-span-2 rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Output</p>
+                                        <p className="text-[#e9e8ff] text-xs mt-1">{activeCompilerInfo.output}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {compilerInfoError && (
+                                <p className="text-[#fca5a5] text-xs mt-2">{compilerInfoError}</p>
+                            )}
                         </div>
                     </div>
 

@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         destination: `${backendUrl}/health`,
       },
       {
+        source: "/compiler-info",
+        destination: `${backendUrl}/compiler-info`,
+      },
+      {
         source: "/api/analytics/:path*",
         destination: `${analyticsUrl}/analytics/:path*`,
       }
