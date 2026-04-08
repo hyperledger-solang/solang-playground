@@ -3,7 +3,7 @@ name: Deploy to AWS via SSM (Production)
 on:
   push:
     branches:
-      - compile-headers
+      - feat/compile-headers
 
 jobs:
   deploy:
