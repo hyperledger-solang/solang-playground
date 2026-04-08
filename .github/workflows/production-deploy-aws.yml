@@ -1,9 +1,10 @@
 name: Deploy to AWS via SSM (Production)
 
 on:
-  push:
-    branches:
-      - feat/compile-headers
+  workflow_run:
+    workflows: ["Build and Test Playground Docker Image (Production)"]
+    types:
+      - completed
 
 jobs:
   deploy:

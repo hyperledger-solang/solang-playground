@@ -1,7 +1,9 @@
 name: Build and Test Playground Docker Image (Production)
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - feat/compile-headers
 
 jobs:
   build_and_test:
