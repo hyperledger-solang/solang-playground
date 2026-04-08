@@ -1,7 +1,9 @@
-name: Deploy to AWS via SSM
+name: Deploy to AWS via SSM (Production)
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - compile-headers
 
 jobs:
   deploy:
