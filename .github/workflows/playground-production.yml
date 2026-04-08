@@ -84,3 +84,11 @@ jobs:
       - name: Push to Docker Hub
         run: |
           docker push ahmadsamehh/playground-gh:official
+
+  deploy:
+    needs: build_and_test
+    uses: ./.github/workflows/production-deploy-aws.yml
+    permissions:
+      id-token: write
+      contents: read
+    secrets: inherit

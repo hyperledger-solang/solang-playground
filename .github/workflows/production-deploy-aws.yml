@@ -1,16 +1,11 @@
 name: Deploy to AWS via SSM (Production)
 
 on:
-  workflow_run:
-    workflows: ["Build and Test Playground Docker Image (Production)"]
-    types:
-      - completed
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   deploy:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'feat/compile-headers'
     runs-on: ubuntu-latest
 
     permissions:
