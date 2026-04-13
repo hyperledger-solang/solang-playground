@@ -6,7 +6,6 @@ import {
   defaultStorageTypes,
   defaultTTLStorage,
   mathfile,
-  mathfile2,
   printerfile,
 } from "./initstate";
 
@@ -32,14 +31,6 @@ function initState() {
     basePath: "explorer.items.src",
     name: "print.sol",
     content: printerfile,
-    openInTab: false,
-  });
-
-  store.send({
-    type: "addFile",
-    basePath: "explorer.items.src",
-    name: "math2.sol",
-    content: mathfile2,
     openInTab: false,
   });
 

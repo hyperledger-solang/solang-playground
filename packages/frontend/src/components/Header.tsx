@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun, FaBug } from "react-icons/fa";
 import Image from "next/image";
 import SolangLogo from "@/assets/image/solang-logo.png";
@@ -102,10 +102,10 @@ function Header() {
 
   console.log('[header] tabs', tabs)
   useEffect(() => {
-    if (selected && selected !== 'home') {
+    if (selected && selected !== "home" && obj?.name) {
       setName(obj.name);
     }
-  }, [selected])
+  }, [selected, obj?.name]);
 
   const handleCompile = async () => {
     const result = await compileFile()
@@ -132,6 +132,53 @@ function Header() {
   const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
   const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
   const { publicKey } = useWallet();
+  const [networkStatus, setNetworkStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [activeRpcUrl, setActiveRpcUrl] = useState("");
+
+  const checkRpcHealth = useCallback(async (): Promise<{ status: "online" | "offline"; url: string }> => {
+    try {
+      const response = await fetch("/api/network/health", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+
+      if (response.ok && payload?.status === "online" && payload?.rpcUrl) {
+        return { status: "online", url: payload.rpcUrl };
+      }
+    } catch {
+      // Keep offline status if health endpoint fails
+    }
+
+    return { status: "offline", url: "" };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const run = async () => {
+      if (disposed) return;
+      const nextStatus = await checkRpcHealth();
+      if (disposed) return;
+      setNetworkStatus(nextStatus.status);
+      setActiveRpcUrl(nextStatus.url);
+    };
+
+    run();
+    const interval = window.setInterval(run, 30000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, [checkRpcHealth]);
+
+  const networkDotClass =
+    networkStatus === "online" ? "bg-green-500" : networkStatus === "offline" ? "bg-red-500" : "bg-yellow-500";
+
+  const networkText =
+    networkStatus === "online"
+      ? "Network: Testnet"
+      : networkStatus === "offline"
+        ? "Network: Testnet (RPC down)"
+        : "Network: Testnet (checking...)";
 
   return (
     <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
@@ -189,9 +236,9 @@ function Header() {
           </a>
           <span>Target: Soroban</span>
           <span>|</span>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>Network: Testnet</span>
+          <div className="flex items-center gap-2" title={activeRpcUrl || "No reachable testnet RPC endpoint"}>
+            <div className={cn("w-2 h-2 rounded-full", networkDotClass)} />
+            <span>{networkText}</span>
           </div>
         </div>
 

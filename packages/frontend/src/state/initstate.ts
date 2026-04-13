@@ -68,59 +68,6 @@ export const printerfile = `contract Printer {
 }
 `;
 
-export const mathfile2 = `pragma solidity 0;
-contract math2 {
-  function add(uint256 a, uint256 b) public returns (uint256) {
-    return a + b;
-  }
-
-  function sub(uint256 a, uint256 b) public returns (uint256) {
-    return a - b;
-  }
-
-  function mul(uint256 a, uint256 b) public returns (uint256) {
-    return a * b;
-  }
-
-  function div(uint256 b) public returns (uint256) {
-    uint256 a = 100;
-    return a / b;
-  }
-
-  function mod(uint256 b) public returns (uint256) {
-    uint256 a = 100;
-    return a % b;
-  }
-
-  // Test function that uses constants to avoid passing 256-bit values
-  function test_constants() public returns (uint256) {
-    uint256 a = 5;
-    uint256 b = 4;
-    return a + b;
-  }
-
-  // Test edge case: maximum uint256 value
-  function test_max_value() public returns (uint256) {
-    uint256 max = 2**256 - 1;
-    return max;
-  }
-
-  // Test edge case: zero values
-  function test_zero_ops() public returns (uint256) {
-    uint256 a = 0;
-    uint256 b = 0;
-    return a + b;
-  }
-
-  // Test edge case: large numbers
-  function test_large_numbers() public returns (uint256) {
-    uint256 a = 2**128;
-    uint256 b = 2**128;
-    return a + b;
-  }
-}
-`;
-
 export const defaultError = `contract error {
   uint64 public count = 1;
 

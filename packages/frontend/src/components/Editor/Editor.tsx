@@ -36,7 +36,7 @@ function Editor() {
         path={modelPath}
         beforeMount={init}
         onMount={mountService}
-        height="calc(100vh - 243px)"
+        height="100%"
         defaultLanguage="solidity"
         theme={theme}
         loading={<Spinner />}
@@ -47,7 +47,7 @@ function Editor() {
           scrollBeyondLastLine: false,
           automaticLayout: true,
           theme: "vs-dark",
-          padding: { top: 10, bottom: 10 },
+          padding: { top: 10, bottom: 20 },
           renderWhitespace: 'none',
           wordWrap: 'off',
           selectOnLineNumbers: true,
