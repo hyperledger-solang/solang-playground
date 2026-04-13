@@ -4,6 +4,7 @@ import {
   defaultCode,
   defaultError,
   defaultStorageTypes,
+  defaultToken,
   defaultTTLStorage,
   mathfile,
   printerfile,
@@ -55,6 +56,14 @@ function initState() {
     basePath: "explorer.items.src",
     name: "ttl_storage.sol",
     content: defaultTTLStorage,
+    openInTab: false,
+  });
+
+  store.send({
+    type: "addFile",
+    basePath: "explorer.items.src",
+    name: "token.sol",
+    content: defaultToken,
     openInTab: false,
   });
 
