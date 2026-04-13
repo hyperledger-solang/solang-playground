@@ -2,7 +2,7 @@ use std::env;
 
 pub const SOLANG_DOCKER_IMAGE_ENV: &str = "SOLANG_DOCKER_IMAGE";
 pub const DEFAULT_SOLANG_DOCKER_IMAGE: &str =
-    "ghcr.io/hyperledger-solang/solang@sha256:86dcaa2ab8d1c60d42939b33878d40c1a02ef1282f2d24be5c6f069633a8e7bf";
+    "ghcr.io/hyperledger-solang/solang:latest";
 
 pub fn solang_docker_image() -> String {
     env::var(SOLANG_DOCKER_IMAGE_ENV)

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-SOLANG_DOCKER_IMAGE="${SOLANG_DOCKER_IMAGE:-ghcr.io/hyperledger-solang/solang@sha256:86dcaa2ab8d1c60d42939b33878d40c1a02ef1282f2d24be5c6f069633a8e7bf}"
+SOLANG_DOCKER_IMAGE="${SOLANG_DOCKER_IMAGE:-ghcr.io/hyperledger-solang/solang:latest}"
 export SOLANG_DOCKER_IMAGE
 
 echo "[init] Checking for Docker availability..."
