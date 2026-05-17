@@ -34,6 +34,16 @@ interface ICompilationErrorResponse {
 
 type CompilationApiResponse = ICompilationSuccessResponse | ICompilationErrorResponse;
 
+interface CompilationErrorPayload {
+    compile_stderr?: unknown;
+    compile_stdout?: unknown;
+    stderr?: unknown;
+    stdout?: unknown;
+}
+
+const GENERIC_COMPILER_ERROR = "Compiler failed without diagnostic output";
+const GENERIC_BACKEND_ERROR = "Compiler service is unavailable. Please try again.";
+
 /**
  * Extract just the filename from a state path like "explorer.items.src.items['main.sol']"
  */
@@ -75,6 +85,46 @@ function logCompilerOutput(result: CompilationApiResponse) {
             logger.error(compileStderr);
         }
     }
+}
+
+function nonEmptyString(value: unknown): string | null {
+    return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+export function selectCompilerDiagnostic(payload: CompilationErrorPayload | null | undefined): string {
+    return nonEmptyString(payload?.compile_stderr)
+        ?? nonEmptyString(payload?.compile_stdout)
+        ?? nonEmptyString(payload?.stderr)
+        ?? nonEmptyString(payload?.stdout)
+        ?? GENERIC_COMPILER_ERROR;
+}
+
+async function parseCompileResponse(res: Response) {
+    const bodyText = await res.text().catch(() => "");
+    const fallbackMessage = bodyText.trim() || res.statusText || `HTTP ${res.status}`;
+    let result = null;
+
+    if (bodyText.trim().length > 0) {
+        try {
+            result = JSON.parse(bodyText);
+        } catch {
+            result = null;
+        }
+    }
+
+    if (!result) {
+        return {
+            success: false,
+            message: fallbackMessage,
+            result: null,
+        };
+    }
+
+    return {
+        success: res.ok,
+        message: res.ok ? res.statusText : fallbackMessage,
+        result,
+    };
 }
 
 function useCompile() {
@@ -120,23 +170,12 @@ function useCompile() {
                 }),
             };
 
-            const { result, success, message } = await fetchWithTimeout(`/compile`, opts, async (res) => {
-                const result = await res.json().catch(() => null);
-                console.log('compilation result', result);
-                if (!result) {
-                    return {
-                        success: false,
-                        message: res.statusText,
-                        result: null,
-                    };
-                }
-
-                return {
-                    success: res.ok,
-                    message: res.statusText,
-                    result: result,
-                };
-            });
+            const { result, success, message } = await fetchWithTimeout(
+                `/compile`,
+                opts,
+                parseCompileResponse,
+            );
+            console.log('compilation result', result);
 
             let err = "";
 
@@ -161,13 +200,14 @@ function useCompile() {
                         err: null
                     };
                 } else {
-                    logCompilerOutput(result);
-                    const message = normalizeOutput(result.payload.compile_stderr) || normalizeOutput(result.payload.stderr) || "Compilation failed";
+                    const message = selectCompilerDiagnostic(result.payload);
+                    logger.error(message);
                     err = message
                 }
             } else {
-                logger.error(message);
-                err = message
+                const backendMessage = message || GENERIC_BACKEND_ERROR;
+                logger.error(backendMessage);
+                err = backendMessage
             }
             console.log('[tur] compilation error:', err)
             return {
@@ -175,14 +215,14 @@ function useCompile() {
                 err
             }
         } catch {
-            logger.error("Contract compilation failed!");
+            logger.error(GENERIC_BACKEND_ERROR);
         }
         finally {
             store.send({ type: "setDialogSpinner", show: false });
         }
         return {
             data: null,
-            err: 'Error compiling contract'
+            err: GENERIC_BACKEND_ERROR
         }
     }
 
