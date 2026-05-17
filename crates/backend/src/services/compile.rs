@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use actix_web::{rt::task::spawn_blocking, web::Json, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder, rt::task::spawn_blocking, web::Json};
 use typescript_type_def::TypeDef;
 
 use crate::services::sandbox::Sandbox;
@@ -73,7 +73,7 @@ pub async fn route_compile(req: Json<CompilationRequest>) -> impl Responder {
         },
         Err(err) => {
             eprintln!("{:?}", err);
-            HttpResponse::InternalServerError().finish()
+            HttpResponse::InternalServerError().body("Backend failed to run the compiler")
         },
     }
 }

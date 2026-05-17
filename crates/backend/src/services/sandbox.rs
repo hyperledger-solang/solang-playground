@@ -1,18 +1,18 @@
 use std::{
     ffi::OsStr,
     fs::{self, File},
-    io::{prelude::*, BufReader, ErrorKind},
+    io::{BufReader, ErrorKind, prelude::*},
     os::unix::prelude::PermissionsExt,
     path::{Path, PathBuf},
     time::Duration,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tempfile::TempDir;
 use tokio::process::Command;
 
-use crate::services::{CompilationRequest, CompilationResult};
 use crate::services::solang_image::solang_docker_image;
+use crate::services::{CompilationRequest, CompilationResult};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 const DOCKER_WORKDIR: &str = "/builds/contract/";
@@ -57,10 +57,10 @@ fn sanitize_compiler_flags(flags: &[String]) -> Result<Vec<String>> {
             let valid = match expected {
                 ExpectedValue::Emit => {
                     matches!(trimmed, "ast-dot" | "cfg" | "llvm-ir" | "llvm-bc" | "object" | "asm")
-                }
+                },
                 ExpectedValue::OptimizeLevel => {
                     matches!(trimmed, "none" | "less" | "default" | "aggressive")
-                }
+                },
             };
 
             if !valid {
@@ -106,7 +106,10 @@ pub fn build_compile_command(
     compiler_flags: &[String],
     output_dir: &Path,
 ) -> Command {
-    println!("Input dir: {:?}\nMain file: {}\nOutput dir: {:?}", input_dir, main_file, output_dir);
+    println!(
+        "Input dir: {:?}\nMain file: {}\nOutput dir: {:?}",
+        input_dir, main_file, output_dir
+    );
     // Base docker command
     let mut cmd = docker_command!(
         "run",
@@ -182,15 +185,14 @@ impl Sandbox {
         let scratch = TempDir::with_prefix("solang_playground").context("failed to create scratch directory")?;
         let input_dir = scratch.path().join("input");
         let output_dir = scratch.path().join("output");
-        
+
         fs::create_dir(&input_dir).context("failed to create input directory")?;
         fs::create_dir(&output_dir).context("failed to create output directory")?;
 
-        fs::set_permissions(&input_dir, PermissionsExt::from_mode(0o777))
-            .context("failed to set input permissions")?;
+        fs::set_permissions(&input_dir, PermissionsExt::from_mode(0o777)).context("failed to set input permissions")?;
         fs::set_permissions(&output_dir, PermissionsExt::from_mode(0o777))
             .context("failed to set output permissions")?;
-        
+
         Ok(Sandbox {
             scratch,
             input_dir,
@@ -203,10 +205,10 @@ impl Sandbox {
         // Determine main file name
         let main_file_name = req.main_file.as_deref().unwrap_or("input.sol");
         let compiler_flags = sanitize_compiler_flags(req.compiler_flags.as_deref().unwrap_or(&[]))?;
-        
+
         // Write the main source file
         self.write_source_file(main_file_name, &req.source)?;
-        
+
         // Write additional files if provided
         if let Some(files) = &req.files {
             for (filename, content) in files {
@@ -254,9 +256,9 @@ impl Sandbox {
 
         let compile_stderr = match compile_log_stderr_file_path {
             Some(path) => fs::read_to_string(&path).context("failed to read compile stderr")?,
-            None => "No stderr.log file found".to_string(),
+            None => String::new(),
         };
-        let compile_stderr = extract_error_message(&compile_stderr);
+        let compile_stderr = sanitize_compiler_stderr(&compile_stderr);
 
         let stdout = String::from_utf8(output.stdout).context("failed to convert vec to string")?;
         let stderr = String::from_utf8(output.stderr).context("failed to convert vec to string")?;
@@ -336,7 +338,7 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let id = stdout.lines().next().context("missing compiler ID")?.trim();
     let stderr = &output.stderr;
-    
+
     let mut command = docker_command!("wait", id);
     println!("ID: {:?}\nwait: {:?}", id, command);
 
@@ -370,17 +372,13 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
     Ok(output)
 }
 
-pub fn extract_error_message(log: &str) -> String {
-    // Remove ANSI escape codes (used for terminal colors)
+pub fn sanitize_compiler_stderr(log: &str) -> String {
     let cleaned_log = remove_ansi_escape_codes(log);
-    let cleaned_log = cleaned_log.trim();
 
-    // Find the start of the actual error message by looking for the keyword "error:"
-    if let Some(start) = cleaned_log.find("error:") {
-        // Extract the error message starting from the keyword "error:" but ignore the keyword itself
-        cleaned_log[start + "error:".len()..].trim().to_string()
+    if cleaned_log.trim().is_empty() {
+        String::new()
     } else {
-        cleaned_log.to_string()
+        cleaned_log
     }
 }
 
@@ -389,4 +387,43 @@ fn remove_ansi_escape_codes(log: &str) -> String {
     // Use a regex pattern to remove ANSI escape codes
     let re = regex::Regex::new(r"\x1B\[[0-9;]*[a-zA-Z]").unwrap();
     re.replace_all(log, "").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_compiler_stderr;
+
+    #[test]
+    fn strips_ansi_escape_codes() {
+        let stderr = "\u{1b}[0merror: invalid token\u{1b}[0m\n";
+
+        assert_eq!(sanitize_compiler_stderr(stderr), "error: invalid token\n");
+    }
+
+    #[test]
+    fn preserves_warnings_and_context_before_error() {
+        let stderr = "warning: unused variable\nnote: while compiling input.sol\nerror: expected expression\n";
+
+        assert_eq!(sanitize_compiler_stderr(stderr), stderr);
+    }
+
+    #[test]
+    fn preserves_multiline_source_spans() {
+        let stderr =
+            "error: expected expression\n  input.sol:3:20\n   |\n 3 |         uint64 x =\n   |                    ^\n";
+
+        assert_eq!(sanitize_compiler_stderr(stderr), stderr);
+    }
+
+    #[test]
+    fn preserves_output_without_lowercase_error_marker() {
+        let stderr = "LLVM ERROR: unsupported operation\nfatal: backend aborted\n";
+
+        assert_eq!(sanitize_compiler_stderr(stderr), stderr);
+    }
+
+    #[test]
+    fn returns_empty_string_for_empty_or_whitespace_output() {
+        assert_eq!(sanitize_compiler_stderr("  \n\t"), "");
+    }
 }
