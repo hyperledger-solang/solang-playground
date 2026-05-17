@@ -20,6 +20,8 @@ import { Api, Server } from "@stellar/stellar-sdk/rpc";
 import { matchEnum, safeParseJson, sha256Buffer } from "../utils";
 import { ContractArgumentI, ContractInvokeI, Nullable, Op_Type, OperationOptionI } from "../types/server";
 import { mapIfValid } from "@/utils";
+import generateIdl from "../../idl-wasm";
+import type { IDL, FunctionSpec } from "@/types/idl";
 
 class ContractService {
   private acc: Account;
@@ -167,17 +169,17 @@ class ContractService {
   // --source-account <alice> \
   // --network-passphrase <'Test SDF Network ; September 2015'> \
   // --rpc-url <https://horizon-testnet.stellar.org / https://localhost:8000/rpc>
-  async deployByWasmHash(ctorParamList: IParam[]) {
-    console.log("Deploying contract:", this.wasmHash.length, ctorParamList);
-    // Map Solidity-like types to Soroban types just like invoke path
-    const constructorArgs = ctorParamList.map((param) => {
-      const [val, mappedType] = mapIfValid(String(param.value ?? ""), param.type);
-      return nativeToScVal(val, { type: mappedType });
-    });
+  async deployByWasmHashEncoded(constructorArgs: xdr.ScVal[]) {
+    console.log("Deploying contract:", this.wasmHash.length, constructorArgs.length);
+    // Soroban requires a 32-byte salt. Generate if not present.
+    const saltU8 = this.curTxnHash
+      ? Uint8Array.from(Buffer.from(this.curTxnHash, "hex"))
+      : crypto.getRandomValues(new Uint8Array(32));
+
     const op = this.makeOperation(Op_Type.DEP_CT_WASM, {
       wasmHash: Buffer.from(this.wasmHash, "hex"),
       address: Address.fromString(this.pubKey()),
-      salt: Buffer.from(this.curTxnHash, "hex"),
+      salt: Buffer.from(saltU8),
       constructorArgs,
     });
 
@@ -201,9 +203,54 @@ class ContractService {
       });
     }
 
+    // 1) Upload wasm
     await this.uploadByWasmBuffer(wasm);
     console.log("WASM uploaded successfully");
 
+    // 2) Build constructor args based on IDL of this wasm (robust to presence/absence)
+    let encodedCtorArgs: xdr.ScVal[] = [];
+    try {
+      const idl: IDL = await generateIdl(new Uint8Array(wasm));
+      const ctor = Array.isArray(idl) ? idl.find((i: FunctionSpec) => i.name.includes("constructor")) : undefined;
+
+      if (ctor && Array.isArray(ctor.inputs) && ctor.inputs.length > 0) {
+        encodedCtorArgs = ctor.inputs.map((input, idx) => {
+          const expectedType = input.value.type as string; // e.g., 'u32', 'i64', 'vec', ...
+
+          if (expectedType === "vec") {
+            const sub = (input.value as any).element?.type as string;
+            const raw = ctorParamList[idx]?.value ?? "[]";
+            const parsed = safeParseJson(String(raw));
+            if (parsed === null || !Array.isArray(parsed)) {
+              throw new Error(`Invalid constructor arg at ${idx}. Expected JSON array of ${sub}`);
+            }
+            return nativeToScVal(
+              parsed.map((v) => {
+                const [vv, tt] = mapIfValid(String(v), sub);
+                return nativeToScVal(vv, { type: tt });
+              }),
+              { type: "vec" },
+            );
+          }
+
+          const userProvided = ctorParamList[idx]?.value ?? "";
+          const [val, mapped] = mapIfValid(String(userProvided), expectedType);
+          if (val === null || mapped === "") {
+            throw new Error(
+              `Invalid constructor arg at index ${idx}. Expected ${expectedType}, received "${String(userProvided)}"`,
+            );
+          }
+          return nativeToScVal(val, { type: mapped });
+        });
+      } else {
+        encodedCtorArgs = [];
+      }
+    } catch (e) {
+      console.warn("Failed to derive constructor args from IDL; defaulting to empty.", e);
+      encodedCtorArgs = [];
+    }
+
+    // 3) Deploy using encoded args (or none if no constructor)
     console.log("Starting deployByWasmHash...");
     const addr = await this.deployByWasmHash(ctorParamList);
 
