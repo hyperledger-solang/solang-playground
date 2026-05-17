@@ -7,15 +7,14 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use tempfile::TempDir;
 use tokio::process::Command;
 
 use crate::services::{CompilationRequest, CompilationResult};
+use crate::services::solang_image::solang_docker_image;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
-// const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang@sha256:e6f687910df5dd9d4f5285aed105ae0e6bcae912db43e8955ed4d8344d49785d";
-const DOCKER_IMAGE_BASE_NAME: &str = "ghcr.io/hyperledger-solang/solang:latest";
 const DOCKER_WORKDIR: &str = "/builds/contract/";
 const DOCKER_OUTPUT: &str = "/playground-result";
 
@@ -28,9 +27,86 @@ macro_rules! docker_command {
     });
 }
 
+fn shell_escape(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn sanitize_compiler_flags(flags: &[String]) -> Result<Vec<String>> {
+    enum ExpectedValue {
+        Emit,
+        OptimizeLevel,
+    }
+
+    let mut sanitized = Vec::new();
+    let mut expected_value: Option<ExpectedValue> = None;
+
+    for flag in flags {
+        let trimmed = flag.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if !trimmed
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':' | '='))
+        {
+            bail!("invalid compiler flag '{trimmed}': unsupported characters");
+        }
+
+        if let Some(expected) = expected_value.take() {
+            let valid = match expected {
+                ExpectedValue::Emit => {
+                    matches!(trimmed, "ast-dot" | "cfg" | "llvm-ir" | "llvm-bc" | "object" | "asm")
+                }
+                ExpectedValue::OptimizeLevel => {
+                    matches!(trimmed, "none" | "less" | "default" | "aggressive")
+                }
+            };
+
+            if !valid {
+                let expected_hint = match expected {
+                    ExpectedValue::Emit => "ast-dot|cfg|llvm-ir|llvm-bc|object|asm",
+                    ExpectedValue::OptimizeLevel => "none|less|default|aggressive",
+                };
+                bail!("invalid value '{trimmed}': expected one of {expected_hint}");
+            }
+
+            sanitized.push(trimmed.to_string());
+            continue;
+        }
+
+        if !trimmed.starts_with('-') {
+            bail!("invalid compiler flag '{trimmed}': flags must start with '-'");
+        }
+
+        sanitized.push(trimmed.to_string());
+
+        expected_value = match trimmed {
+            "--emit" => Some(ExpectedValue::Emit),
+            "-O" => Some(ExpectedValue::OptimizeLevel),
+            _ => None,
+        };
+    }
+
+    if let Some(expected) = expected_value {
+        let missing_for = match expected {
+            ExpectedValue::Emit => "--emit",
+            ExpectedValue::OptimizeLevel => "-O",
+        };
+        bail!("missing value for '{missing_for}'");
+    }
+
+    Ok(sanitized)
+}
+
 /// Builds the compile command using solang docker image
-pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
-    println!("ip file: {:?}\nop dir: {:?}", input_file, output_dir);
+pub fn build_compile_command(
+    input_dir: &Path,
+    main_file: &str,
+    compiler_flags: &[String],
+    output_dir: &Path,
+) -> Command {
+    println!("Input dir: {:?}\nMain file: {}\nOutput dir: {:?}", input_dir, main_file, output_dir);
     // Base docker command
     let mut cmd = docker_command!(
         "run",
@@ -52,13 +128,11 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
     );
     cmd.kill_on_drop(true);
 
-    // Mounting input file
-    let file_name = "input.sol";
-    let mut mount_input_file = input_file.as_os_str().to_os_string();
-    mount_input_file.push(":");
-    mount_input_file.push(DOCKER_WORKDIR);
-    mount_input_file.push(file_name);
-    cmd.arg("--volume").arg(&mount_input_file);
+    // Mount entire input directory (contains all source files)
+    let mut mount_input_dir = input_dir.as_os_str().to_os_string();
+    mount_input_dir.push(":");
+    mount_input_dir.push(DOCKER_WORKDIR);
+    cmd.arg("--volume").arg(&mount_input_dir);
 
     // Mounting output directory
     let mut mount_output_dir = output_dir.as_os_str().to_os_string();
@@ -67,13 +141,24 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
     cmd.arg("--volume").arg(&mount_output_dir);
 
     // Using the solang image
-    cmd.arg(DOCKER_IMAGE_BASE_NAME);
+    cmd.arg(solang_docker_image());
 
-    // Building the compile command
-    let remove_command = format!("rm -rf {}*.wasm {}*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
+    // Building the compile command - compile the main file (imports will be resolved from same directory)
+    let remove_command = format!("rm -rf {}/*.wasm {}/*.contract", DOCKER_OUTPUT, DOCKER_OUTPUT);
+    let escaped_main_file = shell_escape(main_file);
+    let escaped_flags = compiler_flags
+        .iter()
+        .map(|flag| shell_escape(flag))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let flags_segment = if escaped_flags.is_empty() {
+        String::new()
+    } else {
+        format!("{escaped_flags} ")
+    };
     let compile_command = format!(
-        "solang compile --target soroban -o /playground-result {} > /playground-result/stdout.log 2> /playground-result/stderr.log",
-        file_name
+        "solang compile --target soroban -o /playground-result {}{} > /playground-result/stdout.log 2> /playground-result/stderr.log",
+        flags_segment, escaped_main_file
     );
     let sh_command = format!("{} && {}", remove_command, compile_command);
     cmd.arg("-c").arg(sh_command);
@@ -87,7 +172,7 @@ pub fn build_compile_command(input_file: &Path, output_dir: &Path) -> Command {
 pub struct Sandbox {
     #[allow(dead_code)]
     scratch: TempDir,
-    input_file: PathBuf,
+    input_dir: PathBuf,
     output_dir: PathBuf,
 }
 
@@ -95,28 +180,50 @@ impl Sandbox {
     /// Creates a new sandbox
     pub fn new() -> Result<Self> {
         let scratch = TempDir::with_prefix("solang_playground").context("failed to create scratch directory")?;
-        let input_file = scratch.path().join("input.sol");
+        let input_dir = scratch.path().join("input");
         let output_dir = scratch.path().join("output");
+        
+        fs::create_dir(&input_dir).context("failed to create input directory")?;
         fs::create_dir(&output_dir).context("failed to create output directory")?;
 
+        fs::set_permissions(&input_dir, PermissionsExt::from_mode(0o777))
+            .context("failed to set input permissions")?;
         fs::set_permissions(&output_dir, PermissionsExt::from_mode(0o777))
             .context("failed to set output permissions")?;
         
-        File::create(&input_file).context("failed to create input file")?;
-        
         Ok(Sandbox {
             scratch,
-            input_file,
+            input_dir,
             output_dir,
         })
     }
 
     /// Compiles the contract given the source code
     pub fn compile(&self, req: &CompilationRequest) -> Result<CompilationResult> {
-        self.write_source_code(&req.source)?;
+        // Determine main file name
+        let main_file_name = req.main_file.as_deref().unwrap_or("input.sol");
+        let compiler_flags = sanitize_compiler_flags(req.compiler_flags.as_deref().unwrap_or(&[]))?;
+        
+        // Write the main source file
+        self.write_source_file(main_file_name, &req.source)?;
+        
+        // Write additional files if provided
+        if let Some(files) = &req.files {
+            for (filename, content) in files {
+                // Skip if it's the same as main file
+                if filename != main_file_name {
+                    self.write_source_file(filename, content)?;
+                }
+            }
+        }
 
-        let command = build_compile_command(&self.input_file, &self.output_dir);
-        // println!("Executing command: \n{:#?}", command);
+        let command = build_compile_command(&self.input_dir, main_file_name, &compiler_flags, &self.output_dir);
+        println!(
+            "Executing compile command for {} with {} additional files and {} compiler flags",
+            main_file_name,
+            req.files.as_ref().map(|f| f.len()).unwrap_or(0),
+            compiler_flags.len()
+        );
 
         let output = run_command(command)?;
         println!("out: {:?}", output);
@@ -154,52 +261,47 @@ impl Sandbox {
         let stdout = String::from_utf8(output.stdout).context("failed to convert vec to string")?;
         let stderr = String::from_utf8(output.stderr).context("failed to convert vec to string")?;
 
-        let compile_response = match file {
-            Some(file) => match read(&file) {
-                Ok(Some(wasm)) => CompilationResult::Success {
-                    wasm,
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-                Ok(None) => CompilationResult::Error {
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-                Err(_) => CompilationResult::Error {
-                    stderr,
-                    stdout,
-                    compile_stdout,
-                    compile_stderr,
-                },
-            },
-            None => CompilationResult::Error {
+        let command_succeeded = output.status.success();
+        let emit_mode = compiler_flags.iter().any(|flag| flag == "--emit");
+        let wasm = file.and_then(|path| read(&path).ok().flatten());
+
+        let compile_response = if let Some(wasm) = wasm {
+            CompilationResult::Success {
+                wasm,
                 stderr,
                 stdout,
                 compile_stdout,
                 compile_stderr,
-            },
+            }
+        } else if command_succeeded && emit_mode {
+            // `--emit ...` inspection modes can succeed without producing a `.wasm` artifact.
+            CompilationResult::Success {
+                wasm: Vec::new(),
+                stderr,
+                stdout,
+                compile_stdout,
+                compile_stderr,
+            }
+        } else {
+            CompilationResult::Error {
+                stderr,
+                stdout,
+                compile_stdout,
+                compile_stderr,
+            }
         };
 
         Ok(compile_response)
     }
 
-    /// A helper function to write the source code to the input file
-    fn write_source_code(&self, code: &str) -> Result<()> {
-        println!("writing to {:?}", self.input_file);
-        fs::write(&self.input_file, code).context("failed to write source code")?;
-        match fs::read_to_string(&self.input_file) {
-            Ok(content) => println!("Successfully read: {:?}", content),
-            Err(e) => eprintln!("Error reading file: {}", e),
-        }
-        fs::set_permissions(&self.input_file, PermissionsExt::from_mode(0o777))
+    /// A helper function to write a source file to the input directory
+    fn write_source_file(&self, filename: &str, code: &str) -> Result<()> {
+        let file_path = self.input_dir.join(filename);
+        println!("Writing file: {:?}", file_path);
+        fs::write(&file_path, code).context("failed to write source code")?;
+        fs::set_permissions(&file_path, PermissionsExt::from_mode(0o777))
             .context("failed to set source permissions")?;
-        let s: String = code.chars().take(40).collect();
-        println!("Code: {:?}", s);
-        println!("Wrote {} bytes of source to {}", code.len(), self.input_file.display());
+        println!("Wrote {} bytes to {}", code.len(), file_path.display());
         Ok(())
     }
 }
@@ -271,15 +373,14 @@ async fn run_command(mut command: Command) -> Result<std::process::Output> {
 pub fn extract_error_message(log: &str) -> String {
     // Remove ANSI escape codes (used for terminal colors)
     let cleaned_log = remove_ansi_escape_codes(log);
+    let cleaned_log = cleaned_log.trim();
 
     // Find the start of the actual error message by looking for the keyword "error:"
     if let Some(start) = cleaned_log.find("error:") {
         // Extract the error message starting from the keyword "error:" but ignore the keyword itself
-        let error_message = &cleaned_log[start + "error:".len()..];
-        error_message.to_string()
+        cleaned_log[start + "error:".len()..].trim().to_string()
     } else {
-        // If no error message is found, return a default message
-        "No error message found".to_string()
+        cleaned_log.to_string()
     }
 }
 

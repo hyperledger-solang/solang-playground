@@ -14,6 +14,8 @@ import AccountSelectionModal from "./AccountSelectionModal";
 import { IParam } from "@/lib/services/types/common";
 import { extractConstructorParamTypes } from "./DeployExplorer";
 import ErrorModal from "./ErrorModal";
+import useWallet from "@/hooks/useWallet";
+import { truncateAddress } from "@/lib/web3";
 
 interface DeployContractModalProps {
     isOpen: boolean;
@@ -23,16 +25,17 @@ interface DeployContractModalProps {
 function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     const [selectedContract, setSelectedContract] = useState<string>("");
     const [constructorArgs, setConstructorArgs] = useState<IParam[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<string>("0x1a2b...c3d4");
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
     const [isDeploying, setIsDeploying] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
-
+    
     const { deployWasm } = useDeploy();
     const compiled = useSelector(store, (state) => state.context.compiled);
     const files = useSelector(store, (state) => state.context.files);
     const tabs = useSelector(store, (state) => state.context.tabs);
+    const { publicKey } = useWallet();
+    const [selectedAccount, setSelectedAccount] = useState<string>(publicKey);
 
     // Update constructor args when contract changes
     useEffect(() => {
@@ -195,11 +198,11 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                             <Label className="text-[#cccccc] font-medium">Account</Label>
                             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
                                 <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
-                                    <SelectValue placeholder="0x1a2b...c3d4 (Default Account)" />
+                                    <SelectValue placeholder={truncateAddress(publicKey)} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    <SelectItem value="0x1a2b...c3d4" className="text-white hover:bg-[#3a3a3a]">
-                                        0x1a2b...c3d4 (Default Account)
+                                    <SelectItem value={publicKey} className="text-white hover:bg-[#3a3a3a]">
+                                        {truncateAddress(publicKey)}
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -210,7 +213,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                             <Label className="text-[#cccccc] font-medium">Network</Label>
                             <div className="bg-[#0F0F23] p-3 rounded-md border border-[#404040]">
                                 <div className="text-white font-medium text-lg">Testnet</div>
-                                <div className="text-[#9ca3af] text-sm">RPC: https://rpc-testnet.stellar.org</div>
+                                <div className="text-[#9ca3af] text-sm">RPC: Testnet (auto-fallback enabled)</div>
                             </div>
                         </div>
                     </div>

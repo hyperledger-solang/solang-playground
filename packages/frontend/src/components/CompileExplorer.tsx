@@ -31,7 +31,7 @@ function CompileExplorer() {
 
   const handleCompile = async () => {
     const result = await compileFile();
-    if(selected && selected !== 'home')
+    if (!result.err && selected && selected !== 'home' && result.data)
       store.send({ type: "addCompiled", path: selected, name });
     console.log('[tur] compilation result', result);
   }

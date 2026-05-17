@@ -4,15 +4,17 @@ import * as proto from "vscode-languageserver-protocol";
 import { Codec, FromServer, IntoServer } from "./codec";
 import { store } from "@/state";
 
-// const consoleChannel = document.getElementById("channel-console") as HTMLTextAreaElement;
+type DiagnosticListener = (uri: string, diagnostics: proto.Diagnostic[]) => void;
 
 export default class Client extends jsrpc.JSONRPCServerAndClient {
   afterInitializedHooks: (() => Promise<void>)[] = [];
   #fromServer: FromServer;
-  diagnostic: proto.PublishDiagnosticsParams = {
-    uri: "",
-    diagnostics: [],
-  };
+  
+  // Store diagnostics per URI for multi-file support
+  #diagnosticsMap: Map<string, proto.Diagnostic[]> = new Map();
+  
+  // Event listeners for diagnostic updates
+  #diagnosticListeners: Set<DiagnosticListener> = new Set();
 
   constructor(fromServer: FromServer, intoServer: IntoServer) {
     super(
@@ -61,13 +63,19 @@ export default class Client extends jsrpc.JSONRPCServerAndClient {
     for await (const notification of this.#fromServer.notifications) {
       console.log("notification: ", notification);
       if (notification.method == "textDocument/publishDiagnostics") {
-        // delete the old diagnostics
-
-        this.diagnostic.diagnostics = [];
-
-        this.diagnostic = notification.params as proto.PublishDiagnosticsParams;
-
-        console.log("diagnostics: ", this.diagnostic);
+        const params = notification.params as proto.PublishDiagnosticsParams;
+        const uri = params.uri;
+        const diagnostics = params.diagnostics;
+        
+        // Store diagnostics by URI
+        this.#diagnosticsMap.set(uri, diagnostics);
+        
+        console.log("diagnostics for", uri, ":", diagnostics);
+        
+        // Notify all listeners about the update
+        this.#diagnosticListeners.forEach(listener => {
+          listener(uri, diagnostics);
+        });
       }
 
       await this.receiveAndSend(notification);
@@ -81,32 +89,36 @@ export default class Client extends jsrpc.JSONRPCServerAndClient {
     }
   }
 
+  /**
+   * Get diagnostics for a specific URI
+   */
+  getDiagnostics(uri: string): proto.Diagnostic[] {
+    return this.#diagnosticsMap.get(uri) || [];
+  }
+
+  /**
+   * Clear diagnostics for a specific URI
+   */
+  clearDiagnostics(uri: string): void {
+    this.#diagnosticsMap.delete(uri);
+    this.#diagnosticListeners.forEach(listener => {
+      listener(uri, []);
+    });
+  }
+
+  /**
+   * Subscribe to diagnostic updates
+   * Returns an unsubscribe function
+   */
+  onDiagnosticsUpdate(listener: DiagnosticListener): () => void {
+    this.#diagnosticListeners.add(listener);
+    return () => {
+      this.#diagnosticListeners.delete(listener);
+    };
+  }
+
   printToConsole(type: proto.MessageType, message: string): void {
     console.log({ type, message });
-    // if (consoleChannel) {
-    //   switch (type) {
-    //     case proto.MessageType.Error: {
-    //       consoleChannel.value += "   ERROR: ";
-    //       break;
-    //     }
-    //     case proto.MessageType.Warning: {
-    //       consoleChannel.value += "   WARNING: ";
-    //       break;
-    //     }
-    //     case proto.MessageType.Info: {
-    //       consoleChannel.value += "   INFO: ";
-    //       break;
-    //     }
-    //     case proto.MessageType.Log: {
-    //       consoleChannel.value += "   LOG: ";
-    //       break;
-    //     }
-    //   }
-    //   consoleChannel.value += message;
-    //   consoleChannel.value += "\n";
-    // } else {
-    //   console.error("consoleChannel is not defined");
-    // }
   }
 
   pushAfterInitializeHook(...hooks: (() => Promise<void>)[]): void {

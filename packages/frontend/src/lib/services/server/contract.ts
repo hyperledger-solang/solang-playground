@@ -26,6 +26,7 @@ import type { IDL, FunctionSpec } from "@/types/idl";
 class ContractService {
   private acc: Account;
   private rpcUrl: string;
+  private rpcUrls: string[];
   private wasmHash: string;
   private keyPair: Keypair;
   private rpcServer: Server;
@@ -35,11 +36,15 @@ class ContractService {
   private rpcService: RpcService;
   private isSetupDone = false;
 
-  constructor(rpcUrl: string, keyPair: Keypair = Keypair.random()) {
-    this.rpcUrl = rpcUrl;
+  constructor(rpcUrl: string | string[], keyPair: Keypair = Keypair.random()) {
+    this.rpcUrls = Array.isArray(rpcUrl) ? rpcUrl.filter(Boolean) : [rpcUrl];
+    this.rpcUrl = this.rpcUrls[0] || "";
+    if (!this.rpcUrl) {
+      throw new Error("At least one RPC URL must be provided");
+    }
     this.keyPair = keyPair;
-    this.rpcService = new RpcService(rpcUrl);
-    this.rpcServer = new Server(rpcUrl, { allowHttp: true });
+    this.rpcService = new RpcService(this.rpcUrl);
+    this.rpcServer = new Server(this.rpcUrl, { allowHttp: true });
 
     this.acc = {} as Account;
     this.wasmHash = "";
@@ -48,20 +53,80 @@ class ContractService {
     this.nwPassphrase = "";
   }
 
+  private useRpcUrl(url: string) {
+    this.rpcUrl = url;
+    this.rpcService = new RpcService(url);
+    this.rpcServer = new Server(url, { allowHttp: true });
+  }
+
   async setup() {
-    const nw = await this.rpcServer.getNetwork();
-    this.friendBotUrl = nw.friendbotUrl || "";
-    this.nwPassphrase = nw.passphrase;
-    this.isSetupDone = true;
+    let lastError: unknown = null;
+
+    for (const url of this.rpcUrls) {
+      try {
+        this.useRpcUrl(url);
+        const nw = await this.rpcServer.getNetwork();
+        this.friendBotUrl = nw.friendbotUrl || "";
+        this.nwPassphrase = nw.passphrase;
+        this.isSetupDone = true;
+        return;
+      } catch (error) {
+        lastError = error;
+        console.warn(`[ContractService] RPC setup failed for ${url}`, error);
+      }
+    }
+
+    const errMessage = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`Unable to connect to testnet RPC. Tried: ${this.rpcUrls.join(", ")}. Last error: ${errMessage}`);
   }
 
   genKeyPairRandom() {
     return Keypair.random();
   }
 
+  private isAccountNotFoundError(error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return /account not found|resource missing|not found/i.test(msg);
+  }
+
+  private async waitForAccount(pubKey: string, attempts = 8, delayMs = 750): Promise<Account | null> {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await this.account(pubKey);
+      } catch (error) {
+        if (!this.isAccountNotFoundError(error)) {
+          throw error;
+        }
+      }
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    return null;
+  }
+
   async fundAccount(pubKey = this.pubKey()) {
-    await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
-    this.acc = await this.account(pubKey);
+    const existing = await this.waitForAccount(pubKey, 2, 250);
+    if (existing) {
+      this.acc = existing;
+      return;
+    }
+
+    const funded = await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
+    if (!funded) {
+      throw new Error(
+        `Unable to fund testnet account ${pubKey}. Friendbot may be unavailable; please retry in a moment.`,
+      );
+    }
+
+    const account = await this.waitForAccount(pubKey, 12, 1000);
+    if (!account) {
+      throw new Error(
+        `Account ${pubKey} was funded but is not visible on RPC yet. Please retry in a few seconds.`,
+      );
+    }
+
+    this.acc = account;
   }
 
   pubKey() {
@@ -125,7 +190,7 @@ class ContractService {
 
   // 1. upload wasm
   // 2. deploy wasm-hash
-  async deployContract(wasm: Buffer, ctorParamList: IParam[]): Promise<string> {
+  async deployContract(wasm: Buffer, ctorParamList: IParam[]){
     console.log("Starting deployContract with wasm:", wasm.length, "bytes");
     console.log("Constructor params:", ctorParamList);
 
@@ -187,8 +252,17 @@ class ContractService {
 
     // 3) Deploy using encoded args (or none if no constructor)
     console.log("Starting deployByWasmHash...");
-    const addr = await this.deployByWasmHashEncoded(encodedCtorArgs);
-    return addr;
+    const addr = await this.deployByWasmHash(ctorParamList);
+
+    if (!addr) {
+      throw new Error("No contract address returned");
+    }
+
+    return {
+      contractAddress: addr,
+      transactionHash: this.curTxnHash,
+      walletAddress: this.pubKey(),
+    };
   }
 
   async pollTxnByHash(hash = this.curTxnHash): Promise<any> {

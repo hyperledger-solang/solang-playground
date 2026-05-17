@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun } from "react-icons/fa";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun, FaBug } from "react-icons/fa";
 import Image from "next/image";
 import SolangLogo from "@/assets/image/solang-logo.png";
 import { useSelector } from "@xstate/store/react";
@@ -18,6 +18,8 @@ import DeployContractModal from "./DeployContractModal";
 import InvokeFunctionModal from "./InvokeFunctionModal";
 import { get } from "lodash";
 import ErrorModal from "./ErrorModal";
+import useWallet from "@/hooks/useWallet";
+import { truncateAddress } from "@/lib/web3";
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
@@ -100,10 +102,10 @@ function Header() {
 
   console.log('[header] tabs', tabs)
   useEffect(() => {
-    if (selected && selected !== 'home') {
+    if (selected && selected !== "home" && obj?.name) {
       setName(obj.name);
     }
-  }, [selected])
+  }, [selected, obj?.name]);
 
   const handleCompile = async () => {
     const result = await compileFile()
@@ -129,6 +131,54 @@ function Header() {
   const [openInvoke, setOpenInvoke] = useState(false);
   const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
   const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
+  const { publicKey } = useWallet();
+  const [networkStatus, setNetworkStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [activeRpcUrl, setActiveRpcUrl] = useState("");
+
+  const checkRpcHealth = useCallback(async (): Promise<{ status: "online" | "offline"; url: string }> => {
+    try {
+      const response = await fetch("/api/network/health", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+
+      if (response.ok && payload?.status === "online" && payload?.rpcUrl) {
+        return { status: "online", url: payload.rpcUrl };
+      }
+    } catch {
+      // Keep offline status if health endpoint fails
+    }
+
+    return { status: "offline", url: "" };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const run = async () => {
+      if (disposed) return;
+      const nextStatus = await checkRpcHealth();
+      if (disposed) return;
+      setNetworkStatus(nextStatus.status);
+      setActiveRpcUrl(nextStatus.url);
+    };
+
+    run();
+    const interval = window.setInterval(run, 30000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, [checkRpcHealth]);
+
+  const networkDotClass =
+    networkStatus === "online" ? "bg-green-500" : networkStatus === "offline" ? "bg-red-500" : "bg-yellow-500";
+
+  const networkText =
+    networkStatus === "online"
+      ? "Network: Testnet"
+      : networkStatus === "offline"
+        ? "Network: Testnet (RPC down)"
+        : "Network: Testnet (checking...)";
 
   return (
     <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
@@ -175,18 +225,27 @@ function Header() {
       <div className="flex items-center gap-6">
         {/* Network Information */}
         <div className="flex items-center gap-3 text-[#9ca3af] text-sm">
+          <a
+            href="https://github.com/hyperledger-solang/solang-playground/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 text-[#9ca3af] hover:text-white hover:bg-[#2a2b5a] rounded transition-colors"
+          >
+            <FaBug size={12} />
+            Report Issue
+          </a>
           <span>Target: Soroban</span>
           <span>|</span>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>Network: Testnet</span>
+          <div className="flex items-center gap-2" title={activeRpcUrl || "No reachable testnet RPC endpoint"}>
+            <div className={cn("w-2 h-2 rounded-full", networkDotClass)} />
+            <span>{networkText}</span>
           </div>
         </div>
 
         {/* Account Dropdown */}
         <div className="flex items-center gap-2">
           <select className="bg-[#2d2d2d] border border-[#404040] text-white text-sm px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]">
-            <option>Account: 0x1a2b...c3d4</option>
+            <option>Account: {truncateAddress(publicKey)}</option>
           </select>
         </div>
 

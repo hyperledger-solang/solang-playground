@@ -16,7 +16,7 @@ export async function callContract({
   try {
     const ciData = { contractId, method, args };
     console.log("[callContract] Invoking contract:", ciData);
-    const contractService = new ContractService(Network_Url.TEST_NET);
+    const contractService = new ContractService(Network_Url.TEST_NET_FALLBACKS);
     const result = await contractService.invokeContract(ciData);
     return result;
   } catch (error: any) {

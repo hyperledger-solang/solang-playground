@@ -10,18 +10,18 @@ type ReadableStreamType = "bytes";
 export class IntoUnderlyingByteSource {
   private constructor();
   free(): void;
-  start(controller: ReadableByteStreamController): void;
   pull(controller: ReadableByteStreamController): Promise<any>;
+  start(controller: ReadableByteStreamController): void;
   cancel(): void;
-  readonly type: ReadableStreamType;
   readonly autoAllocateChunkSize: number;
+  readonly type: ReadableStreamType;
 }
 export class IntoUnderlyingSink {
   private constructor();
   free(): void;
-  write(chunk: any): Promise<any>;
-  close(): Promise<any>;
   abort(reason: any): Promise<any>;
+  close(): Promise<any>;
+  write(chunk: any): Promise<any>;
 }
 export class IntoUnderlyingSource {
   private constructor();
@@ -39,21 +39,21 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_serverconfig_free: (a: number, b: number) => void;
-  readonly serverconfig_new: (a: any, b: any) => number;
   readonly serve: (a: number) => any;
+  readonly serverconfig_new: (a: any, b: any) => number;
   readonly __wbg_intounderlyingbytesource_free: (a: number, b: number) => void;
-  readonly intounderlyingbytesource_type: (a: number) => number;
-  readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
-  readonly intounderlyingbytesource_start: (a: number, b: any) => void;
-  readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
-  readonly intounderlyingbytesource_cancel: (a: number) => void;
-  readonly __wbg_intounderlyingsource_free: (a: number, b: number) => void;
-  readonly intounderlyingsource_pull: (a: number, b: any) => any;
-  readonly intounderlyingsource_cancel: (a: number) => void;
   readonly __wbg_intounderlyingsink_free: (a: number, b: number) => void;
-  readonly intounderlyingsink_write: (a: number, b: any) => any;
-  readonly intounderlyingsink_close: (a: number) => any;
+  readonly __wbg_intounderlyingsource_free: (a: number, b: number) => void;
+  readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
+  readonly intounderlyingbytesource_cancel: (a: number) => void;
+  readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
+  readonly intounderlyingbytesource_start: (a: number, b: any) => void;
+  readonly intounderlyingbytesource_type: (a: number) => number;
   readonly intounderlyingsink_abort: (a: number, b: any) => any;
+  readonly intounderlyingsink_close: (a: number) => any;
+  readonly intounderlyingsink_write: (a: number, b: any) => any;
+  readonly intounderlyingsource_cancel: (a: number) => void;
+  readonly intounderlyingsource_pull: (a: number, b: any) => any;
   readonly __externref_table_alloc: () => number;
   readonly __wbindgen_export_1: WebAssembly.Table;
   readonly __wbindgen_exn_store: (a: number) => void;
@@ -62,7 +62,7 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_6: WebAssembly.Table;
   readonly closure731_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1257_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure748_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_start: () => void;
 }
 

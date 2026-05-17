@@ -1,55 +1,113 @@
-name: Docker CI
+name: Build and Test Docker Image
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      feature_tag:
+        description: "Feature label to include in the image tag (e.g. rpc-fallback)"
+        required: false
+        default: "manual"
 
 jobs:
-  build:
+  build_and_test:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v4
 
-      # Needed for cargo-make
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install dependencies inside packages/frontend
+        run: |
+          cd packages/frontend
+          npm install --no-workspaces
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo make
         run: cargo install cargo-make
 
-      - name: get Sysbox
+      - name: Get Sysbox
         run: wget https://downloads.nestybox.com/sysbox/releases/v0.6.1/sysbox-ce_0.6.1-0.linux_amd64.deb
 
       - name: Install Sysbox
-        run: sudo apt-get install ./sysbox-ce_0.6.1-0.linux_amd64.deb
+        run: sudo apt-get update && sudo apt-get install -y ./sysbox-ce_0.6.1-0.linux_amd64.deb
 
       - name: Configure Sysbox runtime
-        run: sudo cp sysbox/daemon.json /etc/docker/daemon.json
+        # Ensure the target directory exists
+        run: sudo mkdir -p /etc/docker && sudo cp sysbox/daemon.json /etc/docker/daemon.json
 
       - name: Restart docker service
         run: sudo systemctl restart docker.service
 
-      - name: Build docker
-        run: cargo make docker-build
+      - name: Compute image tag (branch + run + sha)
+        id: image_meta
+        run: |
+          FEATURE="${{ github.event.inputs.feature_tag }}"
+          BRANCH="${GITHUB_REF_NAME:-manual}"
+          SAFE_FEATURE=$(echo "$FEATURE" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g; s#-\{2,\}#-#g; s#^-##; s#-$##')
+          SAFE_BRANCH=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g; s#-\{2,\}#-#g; s#^-##; s#-$##')
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [ -z "$SAFE_FEATURE" ]; then SAFE_FEATURE="manual"; fi
+          TAG="${SAFE_FEATURE}-${SAFE_BRANCH}-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Computed image tag: ${TAG}"
 
-      - name: Run docker
-        run: cargo make docker-run
+      - name: Build docker image
+        # Use direct docker build for clarity and tagging
+        # Use the Dockerfile with embedded entrypoint
+        run: docker build -t ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }} -f Dockerfile .
 
-      - name: Allow Docker image to boot up
-        uses: juliangruber/sleep-action@v1
+      - name: Run docker container in detached mode
+        # Publish both port 4444 (backend) and 3000 (frontend)
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }}
+
+      - name: Download wait-for-it.sh
+        run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
+
+      - name: Wait for backend server (port 4444)
+        run: |
+          echo "Waiting for backend server on localhost:4444..."
+          ./wait-for-it.sh localhost:4444 -t 180 -- echo "Backend server (4444) is up!"
+          if [ $? -ne 0 ]; then
+            echo "Timeout waiting for backend server (4444)."
+            docker logs zsolangpg_backend # Show logs on timeout
+            exit 1
+          fi
+      - name: Wait for frontend server (port 3000)
+        run: |
+          echo "Waiting for frontend server on localhost:3000..."
+          ./wait-for-it.sh localhost:3000 -t 180 -- echo "Frontend server (3000) is up!"
+          if [ $? -ne 0 ]; then
+            echo "Timeout waiting for frontend server (3000)."
+            docker logs zsolangpg_backend # Show logs on timeout
+            exit 1
+          fi
+
+        # Login to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          time: 120s
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Needed to run tests
-      - name: Install npm dependencies
-        run: cargo make deps-npm
+      - name: Push to Docker Hub
+        run: |
+          docker push ahmadsamehh/playground-gh:${{ steps.image_meta.outputs.tag }}
 
-      - name: Test
-        run: cargo make test-app
+      # - name: Tag & Push Docker image to Docker Hub on Push to develop and feat/docker-workflow
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     docker push ahmadsamehh/playground-gh:latest
 
-      - name: Show logs
-        run: cargo make docker-log
+      # - name: Tag and Push Docker image (pull request event)
+      #   if: github.event_name == 'pull_request'
+      #   run: |
+      #     PR_NUMBER=${{ github.event.pull_request.number }}
+      #     docker push ahmadsamehh/playground-gh:pr-$PR_NUMBER

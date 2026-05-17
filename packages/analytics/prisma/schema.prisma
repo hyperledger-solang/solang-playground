@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  wallet       String        @unique
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  contracts    Contract[]
+  activities   Activity[]
+}
+
+model Contract {
+  id           String        @id @default(uuid())
+  address      String        @unique
+  name         String?
+  deployedById String
+  deployedBy   User          @relation(fields: [deployedById], references: [id])
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id         String          @id @default(uuid())
+  type       TransactionType
+  hash       String?         @unique
+  userId     String?
+  user       User?           @relation(fields: [userId], references: [id])
+  contractId String?
+  contract   Contract?       @relation(fields: [contractId], references: [id])
+  method     String?
+  createdAt  DateTime        @default(now())
+}
+
+model Activity {
+  id        String       @id @default(uuid())
+  type      ActivityType
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id])
+  createdAt DateTime     @default(now())
+}
+
+enum TransactionType {
+  DEPLOY
+  INVOKE
+}
+
+enum ActivityType {
+  COMPILE
+}
