@@ -1,92 +1,140 @@
-export const defaultCode = `contract flipper {
-  bool private value;
+export const defaultCode = `pragma solidity 0;
 
-  /// Constructor that initializes the \`bool\` value to the given \`init_value\`.
-  constructor(bool initvalue) {
+contract incrementer {
+  uint32 private value;
+
+  /// Constructor that initializes the int32 value to the given init_value.
+  constructor(uint32 initvalue) {
     value = initvalue;
   }
 
-  /// A message that can be called on instantiated contracts.
-  /// This one flips the value of the stored \`bool\` from \`true\`
-  /// to \`false\` and vice versa.
-  function flip() public {
-    value = !value;
+  /// This increments the value by by.
+  function inc(uint32 by) public {
+    value += by;
   }
 
-  /// Simply returns the current value of our \`bool\`.
-  function get() public view returns (bool) {
+  /// Simply returns the current value of our uint32.
+  function get() public view returns (uint32) {
     return value;
   }
 }
 `;
 
 export const defaultAuth = `contract auth {
-    // Only this address can call the increment function
-    address public owner = address"GDRIX624OGPQEX264NY72UKOJQUASHU3PYKL6DDPGSTWXWJSBOTR6N7W";
+  // Only this address can call the increment function
+  address public owner = address"GDRIX624OGPQEX264NY72UKOJQUASHU3PYKL6DDPGSTWXWJSBOTR6N7W";
 
+  uint64 public instance counter = 20;
 
-    uint64 public instance counter = 20;
+  function increment() public returns (uint64) {
+    owner.requireAuth();
+    counter = counter + 1;
+    return counter;
+  }
+}
+`;
 
-    function increment() public returns (uint64) {
-
-        owner.requireAuth();
-
-        counter = counter + 1;
-
-        return counter;
-
+export const mathfile = `contract math {
+  function max(uint64 a, uint64 b) public returns (uint64) {
+    if (a > b) {
+      return a;
+    } else {
+      return b;
     }
+  }
+
+  function max(uint64 a, uint64 b, uint64 c) public returns (uint64) {
+    if (a > b) {
+      if (a > c) {
+        return a;
+      } else {
+        return c;
+      }
+    } else {
+      if (b > c) {
+        return b;
+      } else {
+        return c;
+      }
+    }
+  }
+}
+`;
+
+export const printerfile = `contract Printer {
+  function print() public {
+    print("Hello, World!");
+  }
 }
 `;
 
 export const defaultError = `contract error {
-    uint64 public count = 1;
+  uint64 public count = 1;
 
-    function decrement() public returns (uint64) {
-        print("Second call will FAIL!");
-        count -= 1;
-        return count;
-    }
+  function decrement() public returns (uint64) {
+    print("Second call will FAIL!");
+    count -= 1;
+    return count;
+  }
 }
 `;
+
 export const defaultStorageTypes = `ccontract storage_types {
+  uint64 public temporary var = 1;
+  uint64 public instance var1 = 1;
+  uint64 public persistent var2 = 2;
+  uint64 public var3 = 2;
 
-    uint64 public temporary var = 1;
-    uint64 public instance var1 = 1;
-    uint64 public persistent var2 = 2;
-    uint64 public var3 = 2;
+  function inc() public {
+    var++;
+    var1++;
+    var2++;
+    var3++;
+  }
 
-    function inc() public {
-        var++;
-        var1++;
-        var2++;
-        var3++;
-    }
-
-    function dec() public {
-        var--;
-        var1--;
-        var2--;
-        var3--;
-    }
+  function dec() public {
+    var--;
+    var1--;
+    var2--;
+    var3--;
+  }
 }
 `;
 
 export const defaultTTLStorage = `contract ttl_storage {
-    uint64 public persistent pCount = 11;
-    uint64 temporary tCount = 7;
-    uint64 instance iCount = 3;
+  uint64 public persistent pCount = 11;
+  uint64 temporary tCount = 7;
+  uint64 instance iCount = 3;
 
-    function extend_persistent_ttl() public view returns (int64) {
-        return pCount.extendTtl(1000, 5000);
-    }
+  function extend_persistent_ttl() public view returns (int64) {
+    return pCount.extendTtl(1000, 5000);
+  }
 
-    function extend_temp_ttl() public view returns (int64) {
-        return tCount.extendTtl(3000, 7000);
-    }
+  function extend_temp_ttl() public view returns (int64) {
+    return tCount.extendTtl(3000, 7000);
+  }
 
-    function extendInstanceTtl() public view returns (int64) {
-        return extendInstanceTtl(2000, 10000);
-    }
+  function extendInstanceTtl() public view returns (int64) {
+    return extendInstanceTtl(2000, 10000);
+  }
+}
+`;
+
+export const defaultToken = `contract token {
+  mapping(address => uint64) public balances;
+
+  function mint(address to, uint64 amount) public {
+    balances[to] = balances[to] + amount;
+  }
+
+  function transfer(address from, address to, uint64 amount) public {
+    require(balances[from] >= amount, "Insufficient balance");
+    balances[from] = balances[from] - amount;
+    balances[to] = balances[to] + amount;
+  }
+
+  function balance(address owner) public view returns (uint64) {
+    return balances[owner];
+  }
 }
 `;

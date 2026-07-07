@@ -1845,18 +1845,20 @@ impl<'a> Builder<'a> {
         for (di, range) in &self.definitions {
             if let Some(&file_no) = defs_to_file_nos.get(&di.def_path) {
                 let file = &self.ns.files[file_no];
+                // Skip if we can't get valid offsets
+                let Some(start) = file.get_offset(range.start.line as usize, range.start.character as usize) else {
+                    continue;
+                };
+                let Some(stop) = file.get_offset(range.end.line as usize, range.end.character as usize) else {
+                    continue;
+                };
                 self.references.push((
                     file_no,
                     ReferenceEntry {
-                        start: file
-                            .get_offset(range.start.line as usize, range.start.character as usize)
-                            .unwrap(),
+                        start,
                         // 1 is added to account for the fact that `Lapper` expects half open ranges of the type:  [`start`, `stop`)
                         // i.e, `start` included but `stop` excluded.
-                        stop: file
-                            .get_offset(range.end.line as usize, range.end.character as usize)
-                            .unwrap()
-                            + 1,
+                        stop: stop + 1,
                         val: di.clone(),
                     },
                 ));
@@ -2139,7 +2141,11 @@ impl LanguageServer for SolangServer {
     }*/
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let new_content = params.content_changes.first().unwrap().text.clone();
+        let Some(first_change) = params.content_changes.first() else {
+            // No content changes - nothing to do
+            return;
+        };
+        let new_content = first_change.text.clone();
 
         let uri = params.text_document.uri;
         let uri_string = uri.to_string();
@@ -2204,13 +2210,15 @@ impl LanguageServer for SolangServer {
             return Ok(None);
         };
 
-        let offset = cache
+        let Some(offset) = cache
             .file
             .get_offset(
                 params.text_document_position.position.line as _,
                 params.text_document_position.position.character as _,
-            )
-            .unwrap();
+            ) else {
+                // Invalid position - return empty completion
+                return Ok(None);
+            };
 
         let builtin_functions = BUILTIN_FUNCTIONS
             .iter()

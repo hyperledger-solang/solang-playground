@@ -1,5 +1,14 @@
 import { store } from ".";
-import { defaultAuth, defaultCode, defaultError, defaultStorageTypes, defaultTTLStorage } from "./initstate";
+import {
+  defaultAuth,
+  defaultCode,
+  defaultError,
+  defaultStorageTypes,
+  defaultToken,
+  defaultTTLStorage,
+  mathfile,
+  printerfile,
+} from "./initstate";
 
 function initState() {
   store.send({
@@ -7,46 +16,61 @@ function initState() {
     basePath: "explorer.items.src",
     name: "main.sol",
     content: defaultCode,
-  }
-);
-//  store.send(
-// {
-//     type: "addFile",
-//     basePath: "explorer.items.src",
-//     name: "auth.sol",
-//     content: defaultAuth,
-//   }
-//  );
+    openInTab: true,
+  });
 
- store.send(
-{
+  store.send({
     type: "addFile",
     basePath: "explorer.items.src",
     name: "error.sol",
     content: defaultError,
-  }
- );
+    openInTab: false,
+  });
 
-  store.send(
-{
+  store.send({
+    type: "addFile",
+    basePath: "explorer.items.src",
+    name: "print.sol",
+    content: printerfile,
+    openInTab: false,
+  });
+
+  store.send({
     type: "addFile",
     basePath: "explorer.items.src",
     name: "storage_types.sol",
     content: defaultStorageTypes,
-  }
- );
-  store.send(
-{
+    openInTab: false,
+  });
+
+  store.send({
+    type: "addFile",
+    basePath: "explorer.items.src",
+    name: "math.sol",
+    content: mathfile,
+    openInTab: false,
+  });
+
+  store.send({
     type: "addFile",
     basePath: "explorer.items.src",
     name: "ttl_storage.sol",
     content: defaultTTLStorage,
-  }
- );
+    openInTab: false,
+  });
 
+  store.send({
+    type: "addFile",
+    basePath: "explorer.items.src",
+    name: "token.sol",
+    content: defaultToken,
+    openInTab: false,
+  });
 
-
-  store.send({ type: "setCurrentPath", path: "explorer.items.src.items['main.sol']" });
+  store.send({
+    type: "setCurrentPath",
+    path: "explorer.items.src.items['main.sol']",
+  });
   store.send({ type: "setDialogSpinner", show: false });
 }
 

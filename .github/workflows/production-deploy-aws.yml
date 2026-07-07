@@ -1,0 +1,34 @@
+name: Deploy to AWS via SSM (Production)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+
+      - name: Deploy using SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy official docker image" \
+            --parameters 'commands=[
+              "set -e",
+              "cd /home/ubuntu",
+              "docker compose -f final-compose.yml --env-file example.env pull",
+              "docker compose -f final-compose.yml --env-file example.env up -d",
+              "docker image prune -f"
+            ]'

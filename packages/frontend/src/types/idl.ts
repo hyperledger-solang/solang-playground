@@ -8,8 +8,13 @@ export interface FunctionSpec {
   outputs: OutputSpec[];
 }
 
+export interface DeployedContractInfo {
+  methods: IDL;
+  fileName: string;
+}
+
 export interface ContractsDeployed {
-  [key: string]: IDL;
+  [key: string]: DeployedContractInfo;
 }
 
 interface InputSpec {

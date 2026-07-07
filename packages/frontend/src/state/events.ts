@@ -13,7 +13,6 @@ import { ICompiled, ICurrentWasm } from "@/types/contracts";
 export const events = {
   setDialogSpinner: (context: Context, event: { show: boolean }) => {
     context.showSpinnerDialog = event.show;
-    
   },
   toggleFolder: (context: Context, event: { path: string }) => {
     const folder = get(context, event.path) as FolderType;
@@ -41,8 +40,8 @@ export const events = {
       }
     }
   },
-  addDeployedContract(context: Context, event: { basePath: string; name: string, contract: any }) {},
-  addFile(context: Context, event: { basePath: string; name: string; content: string }) {
+  addDeployedContract(context: Context, event: { basePath: string; name: string; contract: any }) {},
+  addFile(context: Context, event: { basePath: string; name: string; content: string; openInTab?: boolean }) {
     const path = createPath(event.basePath, event.name);
     const file = {
       type: ExpNodeType.FILE,
@@ -52,8 +51,10 @@ export const events = {
 
     set(context, path, file);
     context.files[path] = event.content;
-    context.currentFile = path;
-    events.addTab(context, { path });
+    if (event.openInTab ?? true) {
+      context.currentFile = path;
+      events.addTab(context, { path });
+    }
   },
   addFiles(context: Context, event: { basePath: string; files: { name: string; content: string }[] }) {
     for (const file of event.files) {
@@ -71,7 +72,6 @@ export const events = {
     } satisfies FolderType;
   },
 
-
   deleteFile(context: Context, event: { path: string; basePath: string }) {
     const folder = get(context, event.basePath) as FolderType;
     const file = get(context, event.path) as FileType;
@@ -79,7 +79,7 @@ export const events = {
     events.removeTab(context, { path: event.path });
     delete folder.items[file.name];
     delete context.files[event.path];
-    context.compiled = context.compiled.filter(c => c.path !== event.path)
+    context.compiled = context.compiled.filter((c) => c.path !== event.path);
   },
   deleteFolder(context: Context, event: { path: string }) {
     unset(context, event.path);
@@ -137,33 +137,35 @@ export const events = {
   // setContractIdl(context: Context, event: { idl: IDL }) {
   //   context.contract.methods = event.idl;
   // },
-  updateContract(context: Context, event: Partial<Contract>) {
+  updateContract(context: Context, event: Partial<Contract> & { fileName?: string }) {
     const addr = event.address;
-    if(addr && Object.keys(context.contract.deployed).indexOf(addr || '') == -1) {
-      context.contract.deployed[addr] = context.contract.methods
+    if (addr && Object.keys(context.contract.deployed).indexOf(addr || "") == -1) {
+      context.contract.deployed[addr] = {
+        methods: context.contract.methods,
+        fileName: event.fileName || "Unknown Contract",
+      };
     }
     Object.assign(context.contract, event);
   },
 
-  deleteDeployed(context: Context, event: {addr: string}) {
-    console.log('[tur] remove deployed:', event.addr);
+  deleteDeployed(context: Context, event: { addr: string }) {
+    console.log("[tur] remove deployed:", event.addr);
     const copy = { ...context.contract.deployed };
-    console.log('[tur] copy:', copy, copy[event.addr]);
+    console.log("[tur] copy:", copy, copy[event.addr]);
 
     delete copy[event.addr];
     context.contract.deployed = copy;
-
   },
-  
+
   addCompiled(context: Context, event: Partial<ICompiled>) {
     const d = {} as ICompiled;
     Object.assign(d, event);
-    const x = context.compiled.filter(c => c.path == event.path);
-    if(x.length == 0) context.compiled.push(d);
+    const x = context.compiled.filter((c) => c.path == event.path);
+    if (x.length == 0) context.compiled.push(d);
   },
 
   updateCurrentWasm(context: Context, event: Partial<ICurrentWasm>) {
-    console.log('[tur] event updateCurrentWasm:', event)
-    Object.assign(context.currentWasm, event)
-  }
+    console.log("[tur] event updateCurrentWasm:", event);
+    Object.assign(context.currentWasm, event);
+  },
 };

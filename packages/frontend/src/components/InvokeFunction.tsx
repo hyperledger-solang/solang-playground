@@ -14,6 +14,10 @@ import { scValToNative, xdr } from "@stellar/stellar-base";
 import Spinner from "./Spinner";
 import ContractService from "@/lib/services/server/contract";
 import { Network_Url } from "@/constants";
+import { safeStringify } from "@/utils";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
+import useWallet from "@/hooks/useWallet";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -22,7 +26,7 @@ function transformValue(type: string, value: any) {
     case "bool":
       return value ? "true" : "false";
     case "vec":
-      return typeof value === "string" ? value : JSON.stringify(value);
+      return typeof value === "string" ? value : safeStringify(value);
     default:
       return value;
   }
@@ -54,7 +58,7 @@ const defaultState = {
   result: { type: "", value: "" },
   name: "",
 };
-function InvokeFunction({ contractAddress, method }: { contractAddress: string, method: FunctionSpec }) {
+function InvokeFunction({ contractAddress, method }: { contractAddress: string; method: FunctionSpec }) {
   const [sg, setSignature] = useState<ReturnType<typeof createLogSingnature>>(defaultState);
   const [args, setArgs] = useState<Record<string, { type: string; value: string; subType: string }>>({});
   // const contractAddress = useSelector(store, (state) => state.context.contract?.address);
@@ -62,6 +66,12 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
   const toastId = useId();
   const [block, setBlock] = useState(false);
   const [invkRetVal, setInvkRetVal] = useState<any>(null);
+  const recordInvoke = useMutation({
+    mutationFn: async (data: any) => {
+      return await axios.post("/api/analytics/invoke", data);
+    },
+  });
+  const { keypair } = useWallet();
 
   const handleInputChange = (name: string, value: string, type: string, subType: string) => {
     setArgs((prev) => ({
@@ -91,18 +101,30 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
       logger.info("Invoking Contract function...");
       setBlock(true);
-      logger.info(JSON.stringify(requestData, null, 2));
+      logger.info(safeStringify(requestData, 2));
       toast.loading("Invoking function...", { id: toastId });
       console.log("Invoke Data", requestData);
 
-      const contractService = new ContractService(Network_Url.TEST_NET);
+      const contractService = new ContractService(Network_Url.TEST_NET_FALLBACKS, keypair);
       const response = await contractService.invokeContract(requestData);
       const { resultXdr, diagnosticEventsXdr, status } = response;
+
+      if (status === "SUCCESS") {
+        recordInvoke.mutate({
+          wallet: contractService.pubKey(),
+          address: contractAddress,
+          method: method.name,
+          txHash: response.txHash,
+        });
+      }
 
       console.log("Invoke Result", resultXdr);
 
       let retVal: any = null;
       let logs: string[] = [];
+
+      // Track error events to write to terminal
+      let errorMessages: string[] = [];
 
       for (const eventXdr of Array.from(diagnosticEventsXdr || [])) {
         try {
@@ -119,14 +141,28 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
 
           if (topics.includes("log")) {
             try {
-              logs.push(JSON.stringify(eventData));
+              logs.push(safeStringify(eventData));
             } catch {
               logs.push(String(eventData));
             }
           }
+
+          // Check for error events
+          if (topics.includes("error")) {
+            const errorMsg = typeof eventData === 'string' ? eventData : safeStringify(eventData);
+            errorMessages.push(errorMsg);
+            logger.error(`Contract Error: ${errorMsg}`);
+            console.log("Error Event", topics, eventData);
+          }
         } catch (e) {
           logger.error(`Error parsing diagnostic event: ${String(e)}`);
         }
+      }
+
+      // Write errors to terminal if any
+      if (errorMessages.length > 0) {
+        const errorDetails = `${errorMessages.join('\n')}\nDiagnostic Events:\n${safeStringify(diagnosticEventsXdr, 2)}`;
+        logger.error(errorDetails);
       }
 
       logs = logs.filter(Boolean);
@@ -165,7 +201,6 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
     }
   };
 
-
   return (
     <Fragment>
       <Dialog open={block}>
@@ -180,9 +215,14 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
       </Dialog>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" key={method.name} className="w-full text-left justify-start items-center btn-custom-invoke" style={{marginTop: '2px'}}>
+          <Button
+            variant="outline"
+            key={method.name}
+            className="w-full text-left justify-start items-center btn-custom-invoke"
+            style={{ marginTop: "2px" }}
+          >
             <span>{method.name}</span>
-            {invkRetVal && (<span>{invkRetVal}</span>)}
+            {invkRetVal && <span>{invkRetVal}</span>}
             <ChevronsLeftRightEllipsis className="ml-auto" />
           </Button>
         </DialogTrigger>
@@ -227,43 +267,44 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string, 
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(sg.name)} onOpenChange={(val) => setSignature(val ? sg : defaultState)}>
-        <DialogContent>
+        <DialogContent className="w-auto min-w-[20rem] max-w-[95vw] sm:max-w-3xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Invocation result</DialogTitle>
           </DialogHeader>
-          <div className="">
-            <p className="text-lg font-bold mb-2">Function Signature</p>
-            <div className="w-full font-medium text-lg resize-none p-2 text-white bg-[rgb(31,31,31)] rounded min-h-16">
-              <div className="flex gap-1">
+          <div className="grid gap-3">
+            <p className="text-lg font-bold">Function Signature</p>
+            <div className="w-full max-h-[40vh] overflow-auto rounded bg-[rgb(31,31,31)] p-3 font-mono text-sm leading-6 text-white">
+              <div className="flex min-w-0 flex-wrap items-start gap-x-1">
                 <span className="text-[#569cd6]">function&nbsp;:-&nbsp;</span>
                 <span className="text-[#dcdcaa]">{sg.name}</span>
               </div>
               {sg.args.map((arg, index) => (
-                <div className="flex gap-1" key={arg.name}>
+                <div className="flex min-w-0 flex-wrap items-start gap-x-1" key={arg.name}>
                   <span className="text-[#5c9284]">
                     <span className="">Input{index + 1}</span>&nbsp;:-&nbsp;
                   </span>
                   <span className="text-[#9cdcaa]">{arg.name}:</span>
                   <span className="text-[#4ec9b0]">{arg.type}</span>
                   <span className="text-[#d4d4d4]">=</span>
-                  <span className="text-[#ce9178]">{arg.value}</span>
+                  <span className="min-w-0 break-all text-[#ce9178]">{arg.value}</span>
                 </div>
               ))}
-              <div className="flex gap-1">
+              <div className="flex min-w-0 flex-wrap items-start gap-x-1">
                 <span className="text-[#755c92]">Result&nbsp;:-&nbsp;</span>
                 <span className="text-[#c586c0]">return:</span>
                 <span className="text-[#4ec9b0]">{sg.result.type}</span>
                 <span className="text-[#d4d4d4]">=</span>
-                <span className="text-[#ce9178]">{sg.result.value}</span>
+                <span className="min-w-0 break-all text-[#ce9178]">{sg.result.value}</span>
               </div>
             </div>
 
-            <p className="text-lg font-bold mb-2 mt-3">Logs:</p>
-            <div className="w-full grid gap-1 font-medium text-lg resize-none p-2  bg-[rgb(31,31,31)] rounded min-h-16">
+            <p className="text-lg font-bold">Logs:</p>
+            <div className="w-full max-h-48 overflow-auto rounded bg-[rgb(31,31,31)] p-3 font-mono text-sm leading-6">
+              {logs.length === 0 && <p className="text-muted-foreground">No logs emitted</p>}
               {logs.map((log, index) => (
-                <p key={index} className="text-base">
+                <p key={index} className="flex min-w-0 gap-1 text-base">
                   <span className="text-[#947291]">{"->"}&nbsp;</span>
-                  {log}
+                  <span className="min-w-0 break-all">{log}</span>
                 </p>
               ))}
             </div>
