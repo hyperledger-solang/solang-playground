@@ -18,6 +18,9 @@ import { safeStringify } from "@/utils";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import useWallet from "@/hooks/useWallet";
+import { mapIfValid } from "@/utils";
+import { nativeToScVal } from "@stellar/stellar-base";
+import { cn } from "@/lib/utils";
 
 function transformValue(type: string, value: any) {
   switch (type) {
@@ -29,6 +32,55 @@ function transformValue(type: string, value: any) {
       return typeof value === "string" ? value : safeStringify(value);
     default:
       return value;
+  }
+}
+
+
+
+
+function getValidationError(type: string, subType: string | undefined, value: string): string | null {
+  const trimmed = value.trim();
+
+  if (type === "option") {
+    if (trimmed === "") return null;
+    return subType ? getValidationError(subType, undefined, value) : null;
+  }
+
+  if (trimmed === "") return "Required";
+
+  if (type === "vec" || type === "tuple") {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      return "Must be valid JSON";
+    }
+    if (type === "vec" && !Array.isArray(parsed)) return "Must be a JSON array";
+    if (subType && Array.isArray(parsed)) {
+      for (let i = 0; i < parsed.length; i++) {
+        const err = getValidationError(subType, undefined, String(parsed[i]));
+        if (err) return `Element ${i}: ${err}`;
+      }
+    }
+    return null;
+  }
+
+  if (type === "map") {
+    try {
+      JSON.parse(trimmed);
+      return null;
+    } catch {
+      return "Must be valid JSON";
+    }
+  }
+
+  const [mapped, mappedType] = mapIfValid(value, type);
+  if (mapped === null || mappedType === "") return `Invalid ${type}`;
+  try {
+    nativeToScVal(mapped, { type: mappedType });
+    return null;
+  } catch {
+    return `Invalid ${type}`;
   }
 }
 
@@ -66,6 +118,17 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
   const toastId = useId();
   const [block, setBlock] = useState(false);
   const [invkRetVal, setInvkRetVal] = useState<any>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [attemptedInvoke, setAttemptedInvoke] = useState(false);
+  const errors: Record<string, string | null> = {};
+  for (const input of method.inputs ?? []) {
+    errors[input.name] = getValidationError(
+      input.value.type,
+      (input as any).value?.element?.type,
+      args[input.name]?.value ?? "",
+    );
+  }
+  const isFormValid = Object.values(errors).every((e) => e === null);
   const recordInvoke = useMutation({
     mutationFn: async (data: any) => {
       return await axios.post("/api/analytics/invoke", data);
@@ -85,6 +148,12 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
   };
 
   const handleInvoke = async () => {
+    setAttemptedInvoke(true);
+    if (!isFormValid) {
+      toast.error("Please fix the invalid arguments", { id: toastId });
+      return;
+    }
+
     try {
       if (!contractAddress) {
         toast.error("No contract address provided", { id: toastId });
@@ -245,9 +314,14 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
                   onChange={(e) =>
                     handleInputChange(arg.name, e.target.value, arg.value.type, (arg as any).value?.element?.type)
                   }
-                  className="col-span-3"
+                  onBlur={() => setTouched((prev) => ({ ...prev, [arg.name]: true }))}
+                  className={cn("col-span-3", (touched[arg.name] || attemptedInvoke) && errors[arg.name] && "border-destructive")}
                   placeholder={`Enter '${arg.name}' value`}
+                  aria-invalid={Boolean((touched[arg.name] || attemptedInvoke) && errors[arg.name])}
                 />
+                {(touched[arg.name] || attemptedInvoke) && errors[arg.name] && (
+                  <p className="text-xs text-destructive">{errors[arg.name]}</p>
+                )}
               </div>
             ))}
 
@@ -261,7 +335,15 @@ function InvokeFunction({ contractAddress, method }: { contractAddress: string; 
               <Button variant="outline">Cancel</Button>
             </DialogTrigger>
             <DialogTrigger asChild>
-              <Button onClick={handleInvoke}>Invoke</Button>
+              <Button
+                onClick={(e) => {
+                  // Keep the dialog open so the user can see and fix the errors
+                  if (!isFormValid) e.preventDefault();
+                  handleInvoke();
+                }}
+              >
+                Invoke
+              </Button>
             </DialogTrigger>
           </DialogFooter>
         </DialogContent>

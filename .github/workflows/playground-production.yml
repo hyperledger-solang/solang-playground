@@ -3,7 +3,7 @@ name: Build and Test Playground Docker Image (Production)
 on:
   push:
     branches:
-      - feat/compile-headers
+      - feat/invoke-input-validation
 
 jobs:
   build_and_test:
@@ -46,11 +46,11 @@ jobs:
       - name: Build docker image
         # Use direct docker build for clarity and tagging
         # Use the Dockerfile with embedded entrypoint
-        run: docker build -t ahmadsamehh/playground-gh:official -f Dockerfile .
+        run: docker build -t ahmadsamehh/playground-gh:invoke-input-validation -f Dockerfile .
 
       - name: Run docker container in detached mode
         # Publish both port 4444 (backend) and 3000 (frontend)
-        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh:official
+        run: docker run --runtime=sysbox-runc -d -p 4444:4444 -p 3000:3000 --name zsolangpg_backend ahmadsamehh/playground-gh:invoke-input-validation
 
       - name: Download wait-for-it.sh
         run: wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
@@ -83,12 +83,4 @@ jobs:
 
       - name: Push to Docker Hub
         run: |
-          docker push ahmadsamehh/playground-gh:official
-
-  deploy:
-    needs: build_and_test
-    uses: ./.github/workflows/production-deploy-aws.yml
-    permissions:
-      id-token: write
-      contents: read
-    secrets: inherit
+          docker push ahmadsamehh/playground-gh:invoke-input-validation
