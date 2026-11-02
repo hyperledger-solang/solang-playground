@@ -251,8 +251,8 @@ class ContractService {
     }
 
     // 3) Deploy using encoded args (or none if no constructor)
-    console.log("Starting deployByWasmHash...");
-    const addr = await this.deployByWasmHash(ctorParamList);
+    console.log("Starting deployByWasmHashEncoded...");
+    const addr = await this.deployByWasmHashEncoded(encodedCtorArgs);
 
     if (!addr) {
       throw new Error("No contract address returned");
