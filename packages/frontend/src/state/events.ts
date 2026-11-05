@@ -160,8 +160,12 @@ export const events = {
   addCompiled(context: Context, event: Partial<ICompiled>) {
     const d = {} as ICompiled;
     Object.assign(d, event);
-    const x = context.compiled.filter((c) => c.path == event.path);
-    if (x.length == 0) context.compiled.push(d);
+    const index = context.compiled.findIndex((c) => c.path == event.path);
+    if (index === -1) {
+      context.compiled.push(d);
+    } else {
+      context.compiled[index] = d;
+    }
   },
 
   updateCurrentWasm(context: Context, event: Partial<ICurrentWasm>) {

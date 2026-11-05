@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -36,6 +36,21 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     const tabs = useSelector(store, (state) => state.context.tabs);
     const { publicKey } = useWallet();
     const [selectedAccount, setSelectedAccount] = useState<string>(publicKey);
+    const previousCompiledLength = useRef(compiled.length);
+
+    useEffect(() => {
+        if (compiled.length > 0) {
+            const hasNewCompilation = compiled.length > previousCompiledLength.current;
+            if (
+                hasNewCompilation ||
+                !selectedContract ||
+                !compiled.some((contract) => contract.name === selectedContract)
+            ) {
+                setSelectedContract(compiled[compiled.length - 1].name);
+            }
+        }
+        previousCompiledLength.current = compiled.length;
+    }, [isOpen, compiled.length]);
 
     // Update constructor args when contract changes
     useEffect(() => {
