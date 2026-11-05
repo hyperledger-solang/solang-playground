@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -99,12 +99,20 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
     // Get deployed contract addresses
     const deployedAddresses = Object.keys(contract.deployed || {});
+    const previousDeployedAddressesLength = useRef(deployedAddresses.length);
 
-    // Auto-select first contract when modal opens
+    // Auto-select the latest contract when the modal opens or a new contract is deployed
     useEffect(() => {
-        if (isOpen && deployedAddresses.length > 0 && !selectedContractAddress) {
-            setSelectedContractAddress(deployedAddresses[0]);
+        if (deployedAddresses.length > 0) {
+            const hasNewDeployment = deployedAddresses.length > previousDeployedAddressesLength.current;
+            if (
+                hasNewDeployment ||
+                (isOpen && (!selectedContractAddress || !deployedAddresses.includes(selectedContractAddress)))
+            ) {
+                setSelectedContractAddress(deployedAddresses[deployedAddresses.length - 1]);
+            }
         }
+        previousDeployedAddressesLength.current = deployedAddresses.length;
     }, [isOpen, deployedAddresses.length]);
 
     // Get methods and fileName for selected contract

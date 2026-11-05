@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import useCompile from "@/hooks/useCompile";
 import useDeploy from "@/hooks/useDeploy";
@@ -34,15 +34,17 @@ function RightPanel() {
 
     // Get deployed contract addresses
     const deployedAddresses = Object.keys(contract.deployed || {});
+    const previousDeployedAddressesLength = useRef(deployedAddresses.length);
 
-    // Auto-select first contract when available or when new contract is deployed
+    // Auto-select the latest contract when available or when a new contract is deployed
     useEffect(() => {
         if (deployedAddresses.length > 0) {
-            // If no contract selected or selected contract no longer exists, select the latest
-            if (!selectedContractAddress || !deployedAddresses.includes(selectedContractAddress)) {
+            const hasNewDeployment = deployedAddresses.length > previousDeployedAddressesLength.current;
+            if (hasNewDeployment || !selectedContractAddress || !deployedAddresses.includes(selectedContractAddress)) {
                 setSelectedContractAddress(deployedAddresses[deployedAddresses.length - 1]);
             }
         }
+        previousDeployedAddressesLength.current = deployedAddresses.length;
     }, [deployedAddresses.length]);
 
     const handleDeploy = () => {

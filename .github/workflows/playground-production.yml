@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/invoke-input-validation
+      - feat/latest-deployment-default
 
 jobs:
   build_and_test:
