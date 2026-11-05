@@ -16,9 +16,9 @@ export default function Home() {
   return (
     <div className="h-screen bg-[#1A1B3A] flex flex-col relative">
       <Header />
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="flex-1 flex min-h-0 relative overflow-x-auto">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex-1 flex flex-col min-h-0 min-w-[300px] relative">
           <FileTabs />
           <div className="flex-1 min-h-0 relative z-10">
             <Editor />

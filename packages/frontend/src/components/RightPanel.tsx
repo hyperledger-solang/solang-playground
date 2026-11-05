@@ -11,8 +11,10 @@ import { get } from "lodash";
 import CompilerOptionsModal from "./CompilerOptionsModal";
 import DeployContractModal from "./DeployContractModal";
 import InvokeFunction from "./InvokeFunction";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function RightPanel() {
+    const [collapsed, setCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState<'Build' | 'Artifacts' | 'Invoke'>('Build');
     const [openCompile, setOpenCompile] = useState(false);
     const [openDeploy, setOpenDeploy] = useState(false);
@@ -52,9 +54,21 @@ function RightPanel() {
     };
 
     return (
-        <div className="w-[300px] border-l border-[#2d2d2d] bg-[#1A1B3A] h-full">
+        <div
+            className={`${collapsed ? "w-[40px]" : "w-[300px]"} shrink-0 relative border-l border-[#2d2d2d] bg-[#1A1B3A] h-full`}
+        >
+            <button
+                type="button"
+                onClick={() => setCollapsed((previousCollapsed) => !previousCollapsed)}
+                aria-label={collapsed ? "Expand right panel" : "Collapse right panel"}
+                title={collapsed ? "Expand right panel" : "Collapse right panel"}
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 p-1 rounded text-[#cccccc] bg-[#2d2d2d] hover:bg-[#3d3d3d]"
+            >
+                {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
+
             {/* Tabs */}
-            <div className="flex border-b border-[#2d2d2d]">
+            <div className={`flex border-b border-[#2d2d2d] ${collapsed ? "hidden" : ""}`}>
                 <button
                     onClick={() => setActiveTab('Build')}
                     className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === 'Build'
@@ -85,7 +99,7 @@ function RightPanel() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 p-3">
+            <div className={`flex-1 p-3 ${collapsed ? "hidden" : ""}`}>
                 {activeTab === 'Build' && (
                     <div className="space-y-4">
                         <div className="text-[#cccccc] text-sm">

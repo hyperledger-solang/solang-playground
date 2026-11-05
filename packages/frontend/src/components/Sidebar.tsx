@@ -55,7 +55,7 @@ function SidebarLayout() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="w-[300px] border-r border-[#2d2d2d] bg-[#1A1B3A] h-full">
+      <div className="w-[300px] shrink-0 border-r border-[#2d2d2d] bg-[#1A1B3A] h-full">
         {/* Tabs */}
         <div className="flex border-b border-[#2d2d2d]">
           <button
