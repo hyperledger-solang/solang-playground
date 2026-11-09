@@ -181,9 +181,9 @@ function Header() {
         : "Network: Testnet (checking...)";
 
   return (
-    <div className="bg-[#1A1B3A] h-[60px] w-full border-b border-white flex items-center justify-between px-8 select-none">
+    <div className="bg-[#1A1B3A] h-[60px] w-full min-w-0 border-b border-white flex items-center justify-between px-3 md:px-8 select-none">
       {/* Left side - Logo + Text + Action Buttons */}
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 items-center gap-2 md:gap-6">
         {/* Solang Logo + Text */}
         <div className="flex items-center gap-3">
           <Image src={SolangLogo} alt="Solang Logo" width={32} height={32} />
@@ -191,11 +191,11 @@ function Header() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 md:gap-3">
           {/* Compile Button */}
           <button
             onClick={() => setOpenCompile(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-sm font-medium transition-colors"
           >
             <FaCode size={14} />
             Compile
@@ -204,7 +204,7 @@ function Header() {
           {/* Deploy Button */}
           <button
             onClick={() => setOpenDeploy(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
+            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
           >
             <FaRocket size={14} />
             Deploy
@@ -213,7 +213,7 @@ function Header() {
           {/* Invoke Button */}
           <button
             onClick={() => setOpenInvoke(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
+            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
           >
             <FaPlay size={14} />
             Invoke
@@ -222,9 +222,9 @@ function Header() {
       </div>
 
       {/* Right side - Network Info and Controls */}
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 items-center gap-2 md:gap-6">
         {/* Network Information */}
-        <div className="flex items-center gap-3 text-[#9ca3af] text-sm">
+        <div className="hidden lg:flex items-center gap-3 text-[#9ca3af] text-sm">
           <a
             href="https://github.com/hyperledger-solang/solang-playground/issues/new"
             target="_blank"
@@ -243,7 +243,7 @@ function Header() {
         </div>
 
         {/* Account Dropdown */}
-        <div className="flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-2">
           <select className="bg-[#2d2d2d] border border-[#404040] text-white text-sm px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]">
             <option>Account: {truncateAddress(publicKey)}</option>
           </select>

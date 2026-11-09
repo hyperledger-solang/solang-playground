@@ -14,11 +14,11 @@ export default function Home() {
   const currentFile = useSelector(store, (state) => state.context.currentFile);
   console.log("[Home] currentFile", currentFile);
   return (
-    <div className="h-screen bg-[#1A1B3A] flex flex-col relative">
+    <div className="h-screen bg-[#1A1B3A] flex flex-col relative overflow-hidden">
       <Header />
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="flex-1 flex min-h-0 relative overflow-hidden">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
           <FileTabs />
           <div className="flex-1 min-h-0 relative z-10">
             <Editor />

@@ -143,6 +143,7 @@ export const events = {
       context.contract.deployed[addr] = {
         methods: context.contract.methods,
         fileName: event.fileName || "Unknown Contract",
+        deployedAt: Date.now(),
       };
     }
     Object.assign(context.contract, event);
@@ -152,16 +153,13 @@ export const events = {
     console.log("[tur] remove deployed:", event.addr);
     const copy = { ...context.contract.deployed };
     console.log("[tur] copy:", copy, copy[event.addr]);
-
     delete copy[event.addr];
     context.contract.deployed = copy;
   },
 
-  addCompiled(context: Context, event: Partial<ICompiled>) {
-    const d = {} as ICompiled;
-    Object.assign(d, event);
-    const x = context.compiled.filter((c) => c.path == event.path);
-    if (x.length == 0) context.compiled.push(d);
+  addCompiled(context: Context, event: Pick<ICompiled, "path" | "name">) {
+    context.compiled = context.compiled.filter((compiled) => compiled.path !== event.path);
+    context.compiled.push({ path: event.path, name: event.name, compiledAt: Date.now() });
   },
 
   updateCurrentWasm(context: Context, event: Partial<ICurrentWasm>) {

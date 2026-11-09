@@ -24,6 +24,54 @@ import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import useWallet from "@/hooks/useWallet";
 import { truncateAddress } from "@/lib/web3";
+import { nativeToScVal } from "@stellar/stellar-base";
+import { getLatestDeployedAddress } from "@/state/utils";
+
+function getValidationError(type: string, subType: string | undefined, value: string): string | null {
+    const trimmed = value.trim();
+
+    if (type === "option") {
+        if (trimmed === "") return null;
+        return subType ? getValidationError(subType, undefined, value) : null;
+    }
+
+    if (trimmed === "") return "Required";
+
+    if (type === "vec" || type === "tuple") {
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            return "Must be valid JSON";
+        }
+        if (type === "vec" && !Array.isArray(parsed)) return "Must be a JSON array";
+        if (subType && Array.isArray(parsed)) {
+            for (let i = 0; i < parsed.length; i++) {
+                const err = getValidationError(subType, undefined, String(parsed[i]));
+                if (err) return `Element ${i}: ${err}`;
+            }
+        }
+        return null;
+    }
+
+    if (type === "map") {
+        try {
+            JSON.parse(trimmed);
+            return null;
+        } catch {
+            return "Must be valid JSON";
+        }
+    }
+
+    const [mapped, mappedType] = mapIfValid(value, type);
+    if (mapped === null || mappedType === "") return `Invalid ${type}`;
+    try {
+        nativeToScVal(mapped, { type: mappedType });
+        return null;
+    } catch {
+        return `Invalid ${type}`;
+    }
+}
 
 interface InvokeFunctionModalProps {
     isOpen: boolean;
@@ -45,18 +93,21 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
     });
     const { keypair, publicKey } = useWallet();
     const [selectedAccount, setSelectedAccount] = useState<string>(publicKey);
+    const [touched, setTouched] = useState<Record<number, boolean>>({});
+    const [attemptedInvoke, setAttemptedInvoke] = useState(false);
 
     const contract = useSelector(store, (state) => state.context.contract);
 
     // Get deployed contract addresses
     const deployedAddresses = Object.keys(contract.deployed || {});
+    const latestDeployedAddress = getLatestDeployedAddress(contract.deployed);
+    const latestDeployedAt = latestDeployedAddress
+        ? contract.deployed[latestDeployedAddress]?.deployedAt
+        : undefined;
 
-    // Auto-select first contract when modal opens
     useEffect(() => {
-        if (isOpen && deployedAddresses.length > 0 && !selectedContractAddress) {
-            setSelectedContractAddress(deployedAddresses[0]);
-        }
-    }, [isOpen, deployedAddresses.length]);
+        setSelectedContractAddress(latestDeployedAddress ?? "");
+    }, [isOpen, latestDeployedAddress, latestDeployedAt]);
 
     // Get methods and fileName for selected contract
     const selectedContractInfo = selectedContractAddress && contract.deployed[selectedContractAddress]
@@ -86,7 +137,15 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
         }
     }, [selectedFunction, selectedContractMethods]);
 
+    const errors: (string | null)[] = functionArgs.map((arg) => getValidationError(arg.type, undefined, String(arg.value ?? "")));
+    const isFormValid = errors.every((e) => e === null);
+
     const handleInvoke = async () => {
+        setAttemptedInvoke(true);
+        if (!isFormValid) {
+            toast.error("Please fix the invalid arguments");
+            return;
+        }
         if (!selectedFunction || !selectedContractAddress) return;
 
         setIsInvoking(true);
@@ -284,7 +343,9 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                     <SelectValue placeholder="Choose a contract..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    {deployedAddresses.map((address) => {
+                                    {[...deployedAddresses]
+                                        .sort((a, b) => contract.deployed[b].deployedAt - contract.deployed[a].deployedAt)
+                                        .map((address) => {
                                         const contractInfo = contract.deployed[address];
                                         return (
                                             <SelectItem key={address} value={address} className="text-white hover:bg-[#3a3a3a]">
@@ -339,9 +400,13 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                                 newArgs[index].value = e.target.value;
                                                 setFunctionArgs(newArgs);
                                             }}
+                                            onBlur={() => setTouched((prev) => ({ ...prev, [index]: true }))}
                                             placeholder={`Enter ${arg.type} value...`}
-                                            className="bg-[#0F0F23] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]"
+                                            className={"bg-[#0F0F23] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]" + (errors[index] && (touched[index] || attemptedInvoke) ? " border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {(touched[index] || attemptedInvoke) && errors[index] && (
+                                            <p className="text-xs text-red-400">{errors[index]}</p>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -389,7 +454,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         </Button>
                         <Button
                             onClick={handleInvoke}
-                            disabled={!selectedFunction || !selectedContractAddress || isInvoking}
+                            disabled={!selectedFunction || !selectedContractAddress || isInvoking || !isFormValid}
                             className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
                         >
                             {isInvoking ? (

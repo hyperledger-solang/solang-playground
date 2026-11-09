@@ -11,6 +11,7 @@ export interface FunctionSpec {
 export interface DeployedContractInfo {
   methods: IDL;
   fileName: string;
+  deployedAt: number;
 }
 
 export interface ContractsDeployed {

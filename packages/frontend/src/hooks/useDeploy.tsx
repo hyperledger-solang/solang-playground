@@ -1,6 +1,5 @@
 "use client";
 
-import { useSelector } from "@xstate/store/react";
 import { store } from "@/state";
 import generateIdl from "@/lib/idl-wasm";
 import { FunctionSpec } from "@/types/idl";
@@ -17,8 +16,6 @@ import useWallet from "./useWallet";
 
 function useDeploy() {
   const { compileFile } = useCompile();
-  const selected = useSelector(store, (state) => state.context.currentFile);
-  const currWasm = useSelector(store, (state) => state.context.currentWasm);
   const recordDeploy = useMutation({
     mutationFn: async ({ wallet, address, name, txHash }: any) => {
       return await axios.post("/api/analytics/deploy", {
@@ -41,8 +38,10 @@ function useDeploy() {
         console.log('[tur] deploying', wasmBuf)
 
         // Use the provided target file path or fall back to current tab
-        const fileToDeploy = targetFilePath || selected;
-        console.log('[tur] deploying file:', fileToDeploy, 'current tab:', selected);
+        const context = store.getSnapshot().context;
+        const fileToDeploy = targetFilePath || context.currentFile;
+        const currWasm = context.currentWasm;
+        console.log('[tur] deploying file:', fileToDeploy, 'current tab:', context.currentFile);
 
         if (currWasm.path && fileToDeploy && currWasm.path === fileToDeploy) {
             wasmBuf = currWasm.buff
@@ -54,22 +53,12 @@ function useDeploy() {
 
             // If we don't have WASM buffer, compile the target file
             if (!wasmBuf && fileToDeploy && fileToDeploy !== 'explorer') {
-                // Store original current file
-                const originalCurrentFile = selected;
-
-                // Temporarily switch to target file for compilation
-                if (fileToDeploy !== originalCurrentFile) {
-                    store.send({ type: "setCurrentPath", path: fileToDeploy });
-                }
-
-                try {
-                    const r = await compileFile(fileToDeploy);
-                    wasmBuf = r.data;
-                } finally {
-                    // Restore original file
-                    if (originalCurrentFile && fileToDeploy !== originalCurrentFile) {
-                        store.send({ type: "setCurrentPath", path: originalCurrentFile });
-                    }
+                const result = await compileFile(fileToDeploy);
+                wasmBuf = result.data;
+                if (wasmBuf) {
+                    const file = get(store.getSnapshot().context, fileToDeploy) as FileType;
+                    const fileName = file?.name ?? fileToDeploy.match(/\['(.+?)'\]$/)?.[1] ?? "Unknown";
+                    store.send({ type: "addCompiled", path: fileToDeploy, name: fileName });
                 }
             }
 

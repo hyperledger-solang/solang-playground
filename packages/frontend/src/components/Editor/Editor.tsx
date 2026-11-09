@@ -30,7 +30,7 @@ function Editor() {
     : '/workspace/default.sol';
 
   return (
-    <div className="bg-[#0F0F23] h-full relative [&_.monaco-editor]:!bg-[#0F0F23] [&_.monaco-editor-background]:!bg-[#0F0F23] [&_.monaco-editor_.margin]:!bg-[#0F0F23] [&_.monaco-editor_.glyph-margin]:!bg-[#0F0F23] [&_.monaco-editor_.lines-content]:!bg-[#0F0F23]">
+    <div className="bg-[#0F0F23] h-full w-full min-w-0 overflow-hidden relative [&_.monaco-editor]:!bg-[#0F0F23] [&_.monaco-editor-background]:!bg-[#0F0F23] [&_.monaco-editor_.margin]:!bg-[#0F0F23] [&_.monaco-editor_.glyph-margin]:!bg-[#0F0F23] [&_.monaco-editor_.lines-content]:!bg-[#0F0F23]">
       <MonacoEditor
         value={code}
         path={modelPath}
