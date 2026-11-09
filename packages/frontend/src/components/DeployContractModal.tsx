@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -16,6 +16,7 @@ import { extractConstructorParamTypes } from "./DeployExplorer";
 import ErrorModal from "./ErrorModal";
 import useWallet from "@/hooks/useWallet";
 import { truncateAddress } from "@/lib/web3";
+import { getLatestCompiled } from "@/state/utils";
 
 interface DeployContractModalProps {
     isOpen: boolean;
@@ -36,50 +37,30 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
     const tabs = useSelector(store, (state) => state.context.tabs);
     const { publicKey } = useWallet();
     const [selectedAccount, setSelectedAccount] = useState<string>(publicKey);
-    const previousCompiledLength = useRef(compiled.length);
+    const latestCompiled = getLatestCompiled(compiled);
 
     useEffect(() => {
-        if (compiled.length > 0) {
-            const hasNewCompilation = compiled.length > previousCompiledLength.current;
-            if (
-                hasNewCompilation ||
-                !selectedContract ||
-                !compiled.some((contract) => contract.name === selectedContract)
-            ) {
-                setSelectedContract(compiled[compiled.length - 1].name);
-            }
+        if (isOpen) {
+            setSelectedContract(latestCompiled?.path ?? "");
+            setConstructorArgs([]);
         }
-        previousCompiledLength.current = compiled.length;
-    }, [isOpen, compiled.length]);
+    }, [isOpen, latestCompiled?.path, latestCompiled?.compiledAt]);
 
-    // Update constructor args when contract changes
     useEffect(() => {
-        if (selectedContract) {
-            // Find the selected compiled contract
-            const selectedCompiledContract = compiled.find(c => c.name === selectedContract);
-            if (selectedCompiledContract) {
-                // Get the file content to extract constructor parameters
-                const filePath = selectedCompiledContract.path;
-                const fileContent = files[filePath] || '';
-
-                // Extract constructor parameter types from the source code
-                const constructorTypes = extractConstructorParamTypes(fileContent);
-
-                if (constructorTypes.length > 0) {
-                    // Create constructor args based on actual constructor parameters
-                    const args = constructorTypes.map((type, index) => ({
-                        type: type,
-                        value: "",
-                        seq: index
-                    }));
-                    setConstructorArgs(args);
-                } else {
-                    // No constructor parameters
-                    setConstructorArgs([]);
-                }
-            }
+        if (!isOpen || !selectedContract) {
+            setConstructorArgs([]);
+            return;
         }
-    }, [selectedContract, compiled, files]);
+
+        const selectedCompiledContract = compiled.find((contract) => contract.path === selectedContract);
+        const fileContent = selectedCompiledContract ? files[selectedCompiledContract.path] || "" : "";
+        const constructorTypes = extractConstructorParamTypes(fileContent);
+        setConstructorArgs(constructorTypes.map((type, index) => ({
+            type,
+            value: "",
+            seq: index,
+        })));
+    }, [isOpen, selectedContract, compiled, files]);
 
     const handleDeploy = async () => {
         if (!selectedContract) {
@@ -105,7 +86,7 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
             }));
 
             // Find the selected compiled contract to get its path
-            const selectedCompiledContract = compiled.find(c => c.name === selectedContract);
+            const selectedCompiledContract = compiled.find(c => c.path === selectedContract);
             const targetPath = selectedCompiledContract?.path;
 
             // Pass the selected contract path explicitly so deployment respects the dropdown
@@ -180,8 +161,8 @@ function DeployContractModal({ isOpen, onClose }: DeployContractModalProps) {
                                         <SelectValue placeholder="Select a contract..." />
                                     </SelectTrigger>
                                     <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                        {compiled.map((contract, index) => (
-                                            <SelectItem key={index} value={contract.name} className="text-white hover:bg-[#3a3a3a]">
+                                        {compiled.map((contract) => (
+                                            <SelectItem key={contract.path} value={contract.path} className="text-white hover:bg-[#3a3a3a]">
                                                 {contract.name}
                                             </SelectItem>
                                         ))}

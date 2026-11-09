@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import useCompile from "@/hooks/useCompile";
 import useDeploy from "@/hooks/useDeploy";
@@ -12,6 +12,7 @@ import CompilerOptionsModal from "./CompilerOptionsModal";
 import DeployContractModal from "./DeployContractModal";
 import InvokeFunction from "./InvokeFunction";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getLatestDeployedAddress } from "@/state/utils";
 
 function RightPanel() {
     const [collapsed, setCollapsed] = useState(false);
@@ -36,18 +37,28 @@ function RightPanel() {
 
     // Get deployed contract addresses
     const deployedAddresses = Object.keys(contract.deployed || {});
-    const previousDeployedAddressesLength = useRef(deployedAddresses.length);
+    const latestDeployedAddress = getLatestDeployedAddress(contract.deployed);
+    const latestDeployedAt = latestDeployedAddress
+        ? contract.deployed[latestDeployedAddress]?.deployedAt
+        : undefined;
 
-    // Auto-select the latest contract when available or when a new contract is deployed
     useEffect(() => {
-        if (deployedAddresses.length > 0) {
-            const hasNewDeployment = deployedAddresses.length > previousDeployedAddressesLength.current;
-            if (hasNewDeployment || !selectedContractAddress || !deployedAddresses.includes(selectedContractAddress)) {
-                setSelectedContractAddress(deployedAddresses[deployedAddresses.length - 1]);
-            }
+        if (activeTab === "Invoke" && latestDeployedAddress) {
+            setSelectedContractAddress(latestDeployedAddress);
         }
-        previousDeployedAddressesLength.current = deployedAddresses.length;
-    }, [deployedAddresses.length]);
+    }, [activeTab, latestDeployedAddress, latestDeployedAt]);
+
+    useEffect(() => {
+        const collapseForViewport = () => {
+            if (window.innerWidth < 1024) {
+                setCollapsed(true);
+            }
+        };
+
+        collapseForViewport();
+        window.addEventListener("resize", collapseForViewport);
+        return () => window.removeEventListener("resize", collapseForViewport);
+    }, []);
 
     const handleDeploy = () => {
         setOpenDeploy(true);
@@ -182,7 +193,9 @@ function RightPanel() {
                                             onChange={(e) => setSelectedContractAddress(e.target.value)}
                                             className="w-full px-3 py-2 rounded bg-[#2d2d2d] text-[#cccccc] border border-[#3d3d3d] text-xs focus:outline-none focus:border-[#8b5cf6]"
                                         >
-                                            {deployedAddresses.map((address) => {
+                                            {[...deployedAddresses]
+                                                .sort((a, b) => contract.deployed[b].deployedAt - contract.deployed[a].deployedAt)
+                                                .map((address) => {
                                                 const contractInfo = contract.deployed[address];
                                                 return (
                                                     <option key={address} value={address}>

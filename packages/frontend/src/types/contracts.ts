@@ -1,6 +1,7 @@
 export interface ICompiled {
     path: string,
     name: string,
+    compiledAt: number,
 }
 
 export interface ICurrentWasm {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -25,6 +25,7 @@ import { useMutation } from "@tanstack/react-query";
 import useWallet from "@/hooks/useWallet";
 import { truncateAddress } from "@/lib/web3";
 import { nativeToScVal } from "@stellar/stellar-base";
+import { getLatestDeployedAddress } from "@/state/utils";
 
 function getValidationError(type: string, subType: string | undefined, value: string): string | null {
     const trimmed = value.trim();
@@ -99,21 +100,14 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
     // Get deployed contract addresses
     const deployedAddresses = Object.keys(contract.deployed || {});
-    const previousDeployedAddressesLength = useRef(deployedAddresses.length);
+    const latestDeployedAddress = getLatestDeployedAddress(contract.deployed);
+    const latestDeployedAt = latestDeployedAddress
+        ? contract.deployed[latestDeployedAddress]?.deployedAt
+        : undefined;
 
-    // Auto-select the latest contract when the modal opens or a new contract is deployed
     useEffect(() => {
-        if (deployedAddresses.length > 0) {
-            const hasNewDeployment = deployedAddresses.length > previousDeployedAddressesLength.current;
-            if (
-                hasNewDeployment ||
-                (isOpen && (!selectedContractAddress || !deployedAddresses.includes(selectedContractAddress)))
-            ) {
-                setSelectedContractAddress(deployedAddresses[deployedAddresses.length - 1]);
-            }
-        }
-        previousDeployedAddressesLength.current = deployedAddresses.length;
-    }, [isOpen, deployedAddresses.length]);
+        setSelectedContractAddress(latestDeployedAddress ?? "");
+    }, [isOpen, latestDeployedAddress, latestDeployedAt]);
 
     // Get methods and fileName for selected contract
     const selectedContractInfo = selectedContractAddress && contract.deployed[selectedContractAddress]
@@ -349,7 +343,9 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                     <SelectValue placeholder="Choose a contract..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    {deployedAddresses.map((address) => {
+                                    {[...deployedAddresses]
+                                        .sort((a, b) => contract.deployed[b].deployedAt - contract.deployed[a].deployedAt)
+                                        .map((address) => {
                                         const contractInfo = contract.deployed[address];
                                         return (
                                             <SelectItem key={address} value={address} className="text-white hover:bg-[#3a3a3a]">

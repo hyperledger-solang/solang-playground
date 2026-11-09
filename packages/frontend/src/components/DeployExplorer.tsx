@@ -13,6 +13,7 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import { IParam } from "@/lib/services/types/common";
 import { mapIfValid } from "@/utils";
+import { getLatestCompiled } from "@/state/utils";
 
 export function extractConstructorParamTypes(contractCode: string): string[] {
   const match = contractCode.match(/constructor\s*\(([\s\S]*?)\)/);
@@ -45,15 +46,19 @@ function DeployExplorer() {
   const [paramTypesList, setParamTypesList] = useState<string[]>([]);
   const [paramList, setParamList] = useState<IParam[]>([]);
   const [copied, setCopied] = useState<boolean>(!1);
-  const [selected, setSelected] = useState<string>(compiled.length ? compiled[0].path : '');
+  const latestCompiled = getLatestCompiled(compiled);
+  const [selected, setSelected] = useState<string>(latestCompiled?.path ?? '');
 
   // Get the content of the selected file (not the current tab)
   const selectedFileContent = selected ? files[selected] || '' : '';
 
   useEffect(() => {
-    console.log('[tur] current file tab:', currFileTabSelected)
-    if (currFileTabSelected) setSelected(currFileTabSelected || '')
-  }, [currFileTabSelected])
+    setSelected(latestCompiled?.path ?? '');
+  }, [latestCompiled?.path, latestCompiled?.compiledAt])
+
+  useEffect(() => {
+    setParamList([]);
+  }, [selected])
 
   useEffect(() => {
     console.log('[tur] compiled updated:', compiled)
